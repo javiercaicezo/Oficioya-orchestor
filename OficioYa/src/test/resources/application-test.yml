@@ -10,3 +10,7 @@ spring:
       ddl-auto: validate
   flyway:
     enabled: true
+jwt:
+  secret: 1bsAUISUGkohU5Y15bXvnyYXL3IColWuRszsQTsa/TcHf8lZO/z/l/NQcywT95bm
+  expiration:
+    ms: 1800000
