@@ -54,6 +54,11 @@ public class LocalUserService implements UserService {
         return creado;
     }
 
+    @Override
+    public void deleteProfile(Long id) {
+        usuarios.remove(id);
+    }
+
     /** Solo para pruebas: marca al usuario como inactivo. */
     public void deactivate(Long id) {
         usuarios.computeIfPresent(id,

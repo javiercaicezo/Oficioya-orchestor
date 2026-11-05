@@ -15,4 +15,10 @@ public interface UserService {
 
     /** Crea el perfil y devuelve el usuario con su id asignado. */
     UserDto createProfile(NewUser newUser);
+
+    /**
+     * Elimina un perfil. El orquestador lo usa para deshacer un registro que fallo
+     * a la mitad.
+     */
+    void deleteProfile(Long id);
 }
