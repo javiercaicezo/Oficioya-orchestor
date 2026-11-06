@@ -6,6 +6,8 @@ import eci.edu.dosw.identity.exception.InvalidCredentialsException;
 import eci.edu.dosw.identity.exception.UserNotFoundException;
 import eci.edu.dosw.identity.model.Credential;
 import eci.edu.dosw.identity.repository.CredentialRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,6 +29,8 @@ public class CredentialService {
 
     public static final int MAX_FAILED_ATTEMPTS = 5;
     public static final long LOCK_MINUTES = 15;
+
+    private static final Logger log = LoggerFactory.getLogger(CredentialService.class);
 
     private final CredentialRepository credentialRepository;
     private final PasswordEncoder passwordEncoder;
@@ -51,7 +55,9 @@ public class CredentialService {
             throw new DuplicateUserException();
         }
         Credential credential = new Credential(userId, passwordEncoder.encode(rawPassword), now());
-        return credentialRepository.save(credential);
+        Credential saved = credentialRepository.save(credential);
+        log.info("Credencial creada para userId={}", userId);
+        return saved;
     }
 
     /**
@@ -124,6 +130,7 @@ public class CredentialService {
     @Transactional
     public void delete(Long userId) {
         credentialRepository.deleteByUserId(userId);
+        log.info("Credencial eliminada para userId={}", userId);
     }
 
     public boolean exists(Long userId) {
@@ -152,8 +159,10 @@ public class CredentialService {
         if (attempts >= MAX_FAILED_ATTEMPTS) {
             credential.setLockedUntil(now.plusMinutes(LOCK_MINUTES));
             credential.setFailedAttempts(0);
+            log.warn("Cuenta bloqueada temporalmente por {} minutos para userId={}", LOCK_MINUTES, credential.getUserId());
         } else {
             credential.setFailedAttempts(attempts);
+            log.warn("Intento de autenticación fallido para userId={}. Intentos acumulados={}", credential.getUserId(), attempts);
         }
         credentialRepository.save(credential);
     }
@@ -164,6 +173,7 @@ public class CredentialService {
         credential.setFailedAttempts(0);
         credential.setLockedUntil(null);
         credentialRepository.save(credential);
+        log.info("Hash de contraseña actualizado exitosamente para userId={}", credential.getUserId());
     }
 
     private LocalDateTime now() {
