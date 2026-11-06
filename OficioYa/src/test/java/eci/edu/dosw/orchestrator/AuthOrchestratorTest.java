@@ -25,15 +25,16 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import eci.edu.dosw.identity.exception.InvalidOtpException;
+import eci.edu.dosw.identity.exception.OtpRateLimitException;
+import eci.edu.dosw.identity.exception.UserNotFoundException;
+import eci.edu.dosw.orchestrator.dto.ChangePasswordRequest;
+import eci.edu.dosw.orchestrator.dto.ForgotPasswordRequest;
+import eci.edu.dosw.orchestrator.dto.ResetPasswordRequest;
+import org.mockito.InOrder;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 /** Prueba unitaria pura del orquestador: todos los modulos son mocks. */
 class AuthOrchestratorTest {
@@ -213,4 +214,182 @@ class AuthOrchestratorTest {
         assertEquals("base de datos caida", lanzada.getMessage());
         assertEquals(1, lanzada.getSuppressed().length);
     }
+
+    // ---------- changePassword ----------
+
+    private static final String ACTUAL = "Actual#Clave2026";
+    private static final String NUEVA = "Nueva#Clave2027";
+
+    @Test
+    void cambiaLaContrasenaYAvisaPorCorreo() {
+        when(userService.findById(7L)).thenReturn(Optional.of(usuario(true)));
+
+        orchestrator.changePassword(7L, new ChangePasswordRequest(ACTUAL, NUEVA));
+
+        verify(credentialService).changePassword(7L, ACTUAL, NUEVA);
+        verify(notificationService).sendPasswordChangedNotice(CORREO);
+    }
+
+    @Test
+    void conLaContrasenaActualIncorrectaNoSeAvisa() {
+        when(userService.findById(7L)).thenReturn(Optional.of(usuario(true)));
+        doThrow(new InvalidCredentialsException()).when(credentialService).changePassword(7L, "mala", NUEVA);
+
+        assertThrows(InvalidCredentialsException.class,
+                () -> orchestrator.changePassword(7L, new ChangePasswordRequest("mala", NUEVA)));
+
+        verify(notificationService, never()).sendPasswordChangedNotice(any());
+    }
+
+    @Test
+    void cambioDeUnUsuarioInexistenteLanzaNoEncontrado() {
+        when(userService.findById(99L)).thenReturn(Optional.empty());
+
+        assertThrows(UserNotFoundException.class,
+                () -> orchestrator.changePassword(99L, new ChangePasswordRequest(ACTUAL, NUEVA)));
+
+        verify(credentialService, never()).changePassword(any(), any(), any());
+    }
+
+    @Test
+    void siFallaElAvisoElCambioDeContrasenaSeMantiene() {
+        when(userService.findById(7L)).thenReturn(Optional.of(usuario(true)));
+        doThrow(new RuntimeException("correo caido")).when(notificationService).sendPasswordChangedNotice(CORREO);
+
+        assertDoesNotThrow(() -> orchestrator.changePassword(7L, new ChangePasswordRequest(ACTUAL, NUEVA)));
+
+        verify(credentialService).changePassword(7L, ACTUAL, NUEVA);
+    }
+
+    // ---------- forgotPassword ----------
+
+    @Test
+    void olvidoGeneraElCodigoYLoEnvia() {
+        when(userService.findByEmail(CORREO)).thenReturn(Optional.of(usuario(true)));
+        when(otpService.generate(7L)).thenReturn("123456");
+
+        orchestrator.forgotPassword(new ForgotPasswordRequest(CORREO));
+
+        verify(notificationService).sendPasswordResetCode(CORREO, "123456", OtpService.VALID_MINUTES);
+    }
+
+    @Test
+    void olvidoConCorreoInexistenteNoHaceNadaNiLanzaError() {
+        when(userService.findByEmail(CORREO)).thenReturn(Optional.empty());
+
+        assertDoesNotThrow(() -> orchestrator.forgotPassword(new ForgotPasswordRequest(CORREO)));
+
+        verify(otpService, never()).generate(any());
+        verify(notificationService, never()).sendPasswordResetCode(any(), any(), org.mockito.ArgumentMatchers.anyInt());
+    }
+
+    @Test
+    void olvidoConUsuarioInactivoNoHaceNadaNiLanzaError() {
+        when(userService.findByEmail(CORREO)).thenReturn(Optional.of(usuario(false)));
+
+        assertDoesNotThrow(() -> orchestrator.forgotPassword(new ForgotPasswordRequest(CORREO)));
+
+        verify(otpService, never()).generate(any());
+    }
+
+    @Test
+    void alSuperarElLimiteDeSolicitudesNoHayErrorNiSeEnviaCodigo() {
+        when(userService.findByEmail(CORREO)).thenReturn(Optional.of(usuario(true)));
+        doThrow(new OtpRateLimitException()).when(otpService).generate(7L);
+
+        assertDoesNotThrow(() -> orchestrator.forgotPassword(new ForgotPasswordRequest(CORREO)));
+
+        verify(notificationService, never()).sendPasswordResetCode(any(), any(), org.mockito.ArgumentMatchers.anyInt());
+    }
+
+    @Test
+    void olvidoConPerfilSinCredencialNoLanzaError() {
+        when(userService.findByEmail(CORREO)).thenReturn(Optional.of(usuario(true)));
+        doThrow(new UserNotFoundException()).when(otpService).generate(7L);
+
+        assertDoesNotThrow(() -> orchestrator.forgotPassword(new ForgotPasswordRequest(CORREO)));
+
+        verify(notificationService, never()).sendPasswordResetCode(any(), any(), org.mockito.ArgumentMatchers.anyInt());
+    }
+
+    // ---------- resetPassword ----------
+
+    @Test
+    void restablecerValidaLaClaveLuegoConsumeElCodigoYDespuesCambia() {
+        when(userService.findByEmail(CORREO)).thenReturn(Optional.of(usuario(true)));
+
+        orchestrator.resetPassword(new ResetPasswordRequest(CORREO, "123456", NUEVA));
+
+        InOrder orden = inOrder(credentialService, otpService);
+        orden.verify(credentialService).validateNewPassword(7L, NUEVA);
+        orden.verify(otpService).verifyAndConsume(7L, "123456");
+        orden.verify(credentialService).resetPassword(7L, NUEVA);
+        verify(notificationService).sendPasswordChangedNotice(CORREO);
+    }
+
+    @Test
+    void conUnaContrasenaNuevaInvalidaNoSeGastaElCodigo() {
+        when(userService.findByEmail(CORREO)).thenReturn(Optional.of(usuario(true)));
+        doThrow(new WeakPasswordException()).when(credentialService).validateNewPassword(7L, "debil");
+
+        assertThrows(WeakPasswordException.class,
+                () -> orchestrator.resetPassword(new ResetPasswordRequest(CORREO, "123456", "debil")));
+
+        verify(otpService, never()).verifyAndConsume(any(), any());
+        verify(credentialService, never()).resetPassword(any(), any());
+    }
+
+    @Test
+    void conUnCodigoIncorrectoNoSeCambiaLaContrasena() {
+        when(userService.findByEmail(CORREO)).thenReturn(Optional.of(usuario(true)));
+        doThrow(new InvalidOtpException()).when(otpService).verifyAndConsume(7L, "000000");
+
+        assertThrows(InvalidOtpException.class,
+                () -> orchestrator.resetPassword(new ResetPasswordRequest(CORREO, "000000", NUEVA)));
+
+        verify(credentialService, never()).resetPassword(any(), any());
+        verify(notificationService, never()).sendPasswordChangedNotice(any());
+    }
+
+    @Test
+    void restablecerConCorreoInexistenteDaCodigoInvalido() {
+        when(userService.findByEmail(CORREO)).thenReturn(Optional.empty());
+
+        assertThrows(InvalidOtpException.class,
+                () -> orchestrator.resetPassword(new ResetPasswordRequest(CORREO, "123456", NUEVA)));
+
+        verify(otpService, never()).verifyAndConsume(any(), any());
+    }
+
+    @Test
+    void restablecerConUsuarioInactivoDaCodigoInvalido() {
+        when(userService.findByEmail(CORREO)).thenReturn(Optional.of(usuario(false)));
+
+        assertThrows(InvalidOtpException.class,
+                () -> orchestrator.resetPassword(new ResetPasswordRequest(CORREO, "123456", NUEVA)));
+
+        verify(otpService, never()).verifyAndConsume(any(), any());
+    }
+
+    @Test
+    void restablecerConPerfilSinCredencialDaCodigoInvalido() {
+        when(userService.findByEmail(CORREO)).thenReturn(Optional.of(usuario(true)));
+        doThrow(new UserNotFoundException()).when(credentialService).validateNewPassword(7L, NUEVA);
+
+        assertThrows(InvalidOtpException.class,
+                () -> orchestrator.resetPassword(new ResetPasswordRequest(CORREO, "123456", NUEVA)));
+
+        verify(otpService, never()).verifyAndConsume(any(), any());
+    }
+
+    @Test
+    void siFallaElAvisoElRestablecimientoSeMantiene() {
+        when(userService.findByEmail(CORREO)).thenReturn(Optional.of(usuario(true)));
+        doThrow(new RuntimeException("correo caido")).when(notificationService).sendPasswordChangedNotice(CORREO);
+
+        assertDoesNotThrow(() -> orchestrator.resetPassword(new ResetPasswordRequest(CORREO, "123456", NUEVA)));
+
+        verify(credentialService).resetPassword(7L, NUEVA);
+    }
+
 }
