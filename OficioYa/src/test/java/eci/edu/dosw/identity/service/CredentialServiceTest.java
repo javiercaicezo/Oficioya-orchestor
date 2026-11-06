@@ -250,6 +250,39 @@ class CredentialServiceTest {
         assertThrows(WeakPasswordException.class, () -> service.resetPassword(1L, VALIDA));
     }
 
+    // ---------- validateNewPassword ----------
+
+    @Test
+    void validateNewPasswordAceptaUnaContrasenaValidaYNoCambiaNada() {
+        Credential c = credencial(1L);
+
+        service.validateNewPassword(1L, NUEVA);
+
+        assertEquals(HASH, c.getPasswordHash());
+        verify(repository, never()).save(any(Credential.class));
+    }
+
+    @Test
+    void validateNewPasswordRechazaUnaContrasenaDebil() {
+        credencial(1L);
+
+        assertThrows(WeakPasswordException.class, () -> service.validateNewPassword(1L, "debil"));
+    }
+
+    @Test
+    void validateNewPasswordRechazaUnaIgualALaActual() {
+        credencial(1L);
+
+        assertThrows(WeakPasswordException.class, () -> service.validateNewPassword(1L, VALIDA));
+    }
+
+    @Test
+    void validateNewPasswordRechazaUnUsuarioSinCredencial() {
+        when(repository.findByUserId(99L)).thenReturn(Optional.empty());
+
+        assertThrows(UserNotFoundException.class, () -> service.validateNewPassword(99L, NUEVA));
+    }
+
     // ---------- delete / exists ----------
 
     @Test
