@@ -92,4 +92,3 @@ public class GlobalExceptionHandler {
                 .body(new ErrorResponse(msg.isEmpty() ? "Solicitud invalida" : msg));
     }
 }
-

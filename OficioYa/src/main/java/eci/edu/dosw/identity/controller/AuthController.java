@@ -31,11 +31,11 @@ public class AuthController {
 
     private final AuthOrchestrator authOrchestrator;
 
+
     public AuthController(AuthOrchestrator authOrchestrator) {
         this.authOrchestrator = authOrchestrator;
     }
 
-    @Operation(summary = "Iniciar sesión", description = "Valida credenciales contra el módulo User/Identity y emite un JWT firmado.")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Autenticación exitosa, token JWT generado"),
         @ApiResponse(responseCode = "401", description = "Credenciales inválidas o usuario inactivo",
@@ -44,6 +44,7 @@ public class AuthController {
                      content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
     @PostMapping("/login")
+
     public LoginResponse login(@Valid @RequestBody LoginRequest request) {
         return authOrchestrator.login(request);
     }
@@ -59,6 +60,7 @@ public class AuthController {
                      content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
     @PostMapping("/register")
+
     public UserDto register(@Valid @RequestBody RegisterRequest register) {
         return authOrchestrator.register(register);
     }
@@ -72,6 +74,7 @@ public class AuthController {
                      content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
     @PutMapping("/change")
+
     public void changePassword(@RequestParam Long userId, @Valid @RequestBody ChangePasswordRequest request) {
         authOrchestrator.changePassword(userId, request);
     }
@@ -83,6 +86,7 @@ public class AuthController {
                      content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
     @PostMapping("/forgot")
+
     public void forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
         authOrchestrator.forgotPassword(request);
     }
@@ -94,6 +98,7 @@ public class AuthController {
                      content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
     @PostMapping("/reset")
+
     public void resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
         authOrchestrator.resetPassword(request);
     }
