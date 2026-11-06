@@ -85,6 +85,17 @@ public class CredentialService {
     }
 
     /**
+     * Valida la nueva contrasena contra la politica y contra la actual, sin cambiar
+     * nada.
+     */
+    @Transactional(readOnly = true)
+    public void validateNewPassword(Long userId, String newPassword) {
+        Credential credential = credentialRepository.findByUserId(userId)
+                .orElseThrow(UserNotFoundException::new);
+        passwordPolicy.validateChange(newPassword, credential.getPasswordHash());
+    }
+
+    /**
      * Borra la credencial. El orquestador lo usa para compensar un registro
      * fallido.
      */

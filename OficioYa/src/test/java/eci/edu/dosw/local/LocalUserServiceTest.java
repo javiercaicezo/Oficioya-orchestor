@@ -77,4 +77,14 @@ class LocalUserServiceTest {
         assertTrue(service.findByEmail("a@x.com").isEmpty());
         assertEquals(1L, service.createProfile(nuevo("b@x.com")).id());
     }
+
+    @Test
+    void deleteProfileBorraAlUsuario() {
+        UserDto creado = service.createProfile(nuevo("a@x.com"));
+
+        service.deleteProfile(creado.id());
+
+        assertTrue(service.findById(creado.id()).isEmpty());
+        assertTrue(service.findByEmail("a@x.com").isEmpty());
+    }
 }
