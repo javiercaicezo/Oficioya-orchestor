@@ -14,8 +14,10 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -299,5 +301,53 @@ class CredentialServiceTest {
 
         assertTrue(service.exists(1L));
         assertFalse(service.exists(2L));
+    }
+
+    // ---------- wasIssuedBeforePasswordChange ----------
+
+    private static Instant enZona(LocalDateTime t) {
+        return t.atZone(ZONA).toInstant();
+    }
+
+    @Test
+    void unTokenAnteriorAlCambioDeContrasenaQuedaInvalidado() {
+        credencial(1L).setPasswordChangedAt(NOW);
+        assertTrue(service.wasIssuedBeforePasswordChange(1L, enZona(NOW).minusSeconds(1)));
+    }
+
+    @Test
+    void unTokenDelMismoSegundoDelCambioSigueSiendoValido() {
+        credencial(1L).setPasswordChangedAt(NOW.plusNanos(700_000_000));
+        assertFalse(service.wasIssuedBeforePasswordChange(1L, enZona(NOW)));
+    }
+
+    @Test
+    void unTokenPosteriorAlCambioEsValido() {
+        credencial(1L).setPasswordChangedAt(NOW);
+        assertFalse(service.wasIssuedBeforePasswordChange(1L, enZona(NOW).plusSeconds(5)));
+    }
+
+    @Test
+    void sinCredencialElTokenQuedaInvalidado() {
+        when(repository.findByUserId(9L)).thenReturn(Optional.empty());
+        assertTrue(service.wasIssuedBeforePasswordChange(9L, enZona(NOW)));
+    }
+
+    @Test
+    void sinFechaDeCambioElTokenEsValido() {
+        credencial(1L).setPasswordChangedAt(null);
+        assertFalse(service.wasIssuedBeforePasswordChange(1L, enZona(NOW)));
+    }
+
+    @Test
+    void laComparacionUsaLaZonaDelReloj() {
+        ZoneId bogota = ZoneId.of("America/Bogota");
+        CredentialService enBogota = new CredentialService(repository, ENCODER,
+                new PasswordPolicyService(ENCODER), Clock.fixed(Instant.now(), bogota));
+        Credential c = new Credential(2L, HASH, NOW);
+        when(repository.findByUserId(2L)).thenReturn(Optional.of(c));
+
+        assertFalse(enBogota.wasIssuedBeforePasswordChange(2L, NOW.atZone(bogota).toInstant()));
+        assertTrue(enBogota.wasIssuedBeforePasswordChange(2L, NOW.toInstant(ZoneOffset.UTC)));
     }
 }
