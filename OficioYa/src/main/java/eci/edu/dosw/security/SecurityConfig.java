@@ -11,6 +11,7 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfigurationSource;
 
 @Configuration
 @EnableWebSecurity
@@ -20,8 +21,10 @@ public class SecurityConfig {
     @Bean
     SecurityFilterChain filterChain(HttpSecurity http, JwtProvider jwtProvider,
             CredentialService credentialService, RestAuthenticationEntryPoint entryPoint,
-            RestAccessDeniedHandler deniedHandler) throws Exception {
-        http.csrf(csrf -> csrf.disable())
+            RestAccessDeniedHandler deniedHandler,
+            CorsConfigurationSource corsConfigurationSource) throws Exception {
+        http.cors(cors -> cors.configurationSource(corsConfigurationSource))
+            .csrf(csrf -> csrf.disable())
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .httpBasic(b -> b.disable())
             .formLogin(f -> f.disable())
