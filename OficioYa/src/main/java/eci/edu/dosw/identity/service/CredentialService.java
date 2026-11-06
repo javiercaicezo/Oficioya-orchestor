@@ -11,7 +11,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
+import java.util.Optional;
 
 /**
  * Gestiona las credenciales: guardado cifrado, verificacion, bloqueo por
@@ -93,6 +96,25 @@ public class CredentialService {
         Credential credential = credentialRepository.findByUserId(userId)
                 .orElseThrow(UserNotFoundException::new);
         passwordPolicy.validateChange(newPassword, credential.getPasswordHash());
+    }
+
+    /**
+     * true si el token (iat) se emitió antes del último cambio de contraseña, o si la credencial ya
+     * no existe. Un token emitido en el mismo segundo del cambio se considera válido: iat va en
+     * segundos y password_changed_at se trunca a segundos para compararlos sin falsos rechazos.
+     */
+    @Transactional(readOnly = true)
+    public boolean wasIssuedBeforePasswordChange(Long userId, Instant issuedAt) {
+        Optional<Credential> credential = credentialRepository.findByUserId(userId);
+        if (credential.isEmpty()) {
+            return true;
+        }
+        LocalDateTime changedAt = credential.get().getPasswordChangedAt();
+        if (changedAt == null) {
+            return false;
+        }
+        Instant changed = changedAt.atZone(clock.getZone()).toInstant().truncatedTo(ChronoUnit.SECONDS);
+        return issuedAt.isBefore(changed);
     }
 
     /**
