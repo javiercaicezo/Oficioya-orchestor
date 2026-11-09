@@ -19,6 +19,17 @@ import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 
+import eci.edu.dosw.local.LocalUserService;
+import eci.edu.dosw.user.NewUser;
+import eci.edu.dosw.user.Role;
+import eci.edu.dosw.user.UserDto;
+import org.springframework.http.MediaType;
+import org.springframework.security.crypto.password.PasswordEncoder;
+
+import java.util.Set;
+import java.util.UUID;
+
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -39,12 +50,23 @@ class SecurityIntegrationTest {
     private static final Long USER_ID = 1L;
     private static final String CLAVE = "Segura#Clave2026";
 
-    @Autowired private MockMvc mvc;
-    @Autowired private JwtProvider jwtProvider;
-    @Autowired private CredentialService credentialService;
-    @Autowired private CredentialRepository credentialRepository;
-    @Autowired private Clock clock;
-    @Value("${jwt.secret}") private String secret;
+    @Autowired
+    private MockMvc mvc;
+    @Autowired
+    private JwtProvider jwtProvider;
+    @Autowired
+    private CredentialService credentialService;
+    @Autowired
+    private CredentialRepository credentialRepository;
+    @Autowired
+    private Clock clock;
+    @Value("${jwt.secret}")
+    private String secret;
+
+    @Autowired
+    private LocalUserService localUserService;
+    @Autowired
+    private PasswordEncoder passwordEncoder;
 
     @BeforeEach
     void preparar() {
@@ -197,12 +219,53 @@ class SecurityIntegrationTest {
     void unTokenVencidoEnUnaRutaPublicaNoLaBloquea() throws Exception {
         String vencido = new JwtProvider(secret, -1000L).generateToken(USER_ID, List.of("CLIENT"));
         mvc.perform(MockMvcRequestBuilders.post("/api/auth/login")
-                        .header("Authorization", "Bearer " + vencido))
+                .header("Authorization", "Bearer " + vencido))
                 .andExpect(result -> assertNotEquals(401, result.getResponse().getStatus()));
     }
 
     @Test
     void unaRutaNoListadaExigeToken() throws Exception {
         get("/api/cualquier-cosa", null).andExpect(status().isUnauthorized());
+    }
+
+    // --- cambio de contraseña: el id sale del token, no de la URL ---
+    private UserDto crearUsuarioConCredencial(String clave) {
+        UserDto usuario = localUserService.createProfile(
+                new NewUser("Prueba", UUID.randomUUID() + "@test.com", Set.of(Role.CLIENT)));
+        credentialService.create(usuario.id(), clave);
+        return usuario;
+    }
+
+    @Test
+    void cambiarContrasenaSinTokenDevuelve401() throws Exception {
+        mvc.perform(MockMvcRequestBuilders.put("/api/v1/auth/change")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"currentPassword\":\"x\",\"newPassword\":\"y\"}"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void cambiarContrasenaIgnoraElUserIdDeLaUrl() throws Exception {
+        credentialRepository.deleteAll();
+        String claveVictima = "Victima#Clave2026";
+        UserDto atacante = crearUsuarioConCredencial(CLAVE);
+        UserDto victima = crearUsuarioConCredencial(claveVictima);
+        String tokenAtacante = jwtProvider.generateToken(atacante.id(), List.of("CLIENT"));
+
+        mvc.perform(MockMvcRequestBuilders.put("/api/v1/auth/change")
+                .param("userId", String.valueOf(victima.id()))
+                .header("Authorization", "Bearer " + tokenAtacante)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"currentPassword\":\"" + CLAVE
+                        + "\",\"newPassword\":\"Nueva#Clave2026X\"}"))
+                .andExpect(status().isOk());
+
+        String hashVictima = credentialRepository.findByUserId(victima.id()).orElseThrow().getPasswordHash();
+        String hashAtacante = credentialRepository.findByUserId(atacante.id()).orElseThrow().getPasswordHash();
+        assertTrue(passwordEncoder.matches(claveVictima, hashVictima));
+        assertTrue(passwordEncoder.matches("Nueva#Clave2026X", hashAtacante));
+
+        localUserService.deleteProfile(atacante.id());
+        localUserService.deleteProfile(victima.id());
     }
 }
