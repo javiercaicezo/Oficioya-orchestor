@@ -1,0 +1,5 @@
+# Configuracion SOLO para desarrollo local (perfil "local").
+# Este secreto es publico (esta en el repositorio): nunca se usa fuera de local.
+jwt:
+  secret: ittFuD1AgrBmd01gZC5U1sO+Ube03p4RRhx6mFsSzbxvvgGIvSkHbCgL3vhrlmD4
+  
