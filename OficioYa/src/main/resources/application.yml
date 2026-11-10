@@ -1,8 +1,6 @@
 spring:
   application:
     name: oficioya
-  profiles:
-    active: local
   datasource:
     # Valores por defecto SOLO para desarrollo local (docker-compose.yml).
     # En cualquier otro ambiente se sobrescriben con variables de entorno.

@@ -21,9 +21,11 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
+import java.util.List;
 import java.util.Set;
 
 import static org.hamcrest.Matchers.containsString;
@@ -219,13 +221,16 @@ class AuthControllerTest {
     @DisplayName("Endpoint PUT /api/v1/auth/change")
     class ChangePasswordTests {
 
+        private final UsernamePasswordAuthenticationToken usuario1 =
+                new UsernamePasswordAuthenticationToken(1L, null, List.of());
+
         @Test
         @DisplayName("200 OK al cambiar contrasena correctamente")
         void changePasswordExitoso() throws Exception {
             doNothing().when(authOrchestrator).changePassword(eq(1L), any(ChangePasswordRequest.class));
 
             mockMvc.perform(put("/api/v1/auth/change")
-                            .param("userId", "1")
+                            .principal(usuario1)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content("""
                                     {
@@ -243,7 +248,7 @@ class AuthControllerTest {
                     .when(authOrchestrator).changePassword(eq(1L), any(ChangePasswordRequest.class));
 
             mockMvc.perform(put("/api/v1/auth/change")
-                            .param("userId", "1")
+                            .principal(usuario1)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content("""
                                     {
@@ -261,7 +266,7 @@ class AuthControllerTest {
                     .when(authOrchestrator).changePassword(eq(1L), any(ChangePasswordRequest.class));
 
             mockMvc.perform(put("/api/v1/auth/change")
-                            .param("userId", "1")
+                            .principal(usuario1)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content("""
                                     {
