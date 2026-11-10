@@ -11,6 +11,7 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfigurationSource;
 
 @Configuration
 @EnableWebSecurity
@@ -20,8 +21,10 @@ public class SecurityConfig {
     @Bean
     SecurityFilterChain filterChain(HttpSecurity http, JwtProvider jwtProvider,
             CredentialService credentialService, RestAuthenticationEntryPoint entryPoint,
-            RestAccessDeniedHandler deniedHandler) throws Exception {
-        http.csrf(csrf -> csrf.disable())
+            RestAccessDeniedHandler deniedHandler,
+            CorsConfigurationSource corsConfigurationSource) throws Exception {
+        http.cors(cors -> cors.configurationSource(corsConfigurationSource))
+            .csrf(csrf -> csrf.disable())
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .httpBasic(b -> b.disable())
             .formLogin(f -> f.disable())
@@ -30,8 +33,11 @@ public class SecurityConfig {
                 .accessDeniedHandler(deniedHandler))
             .authorizeHttpRequests(a -> a
                 .requestMatchers(HttpMethod.POST,
+                    "/api/v1/auth/login", "/api/v1/auth/register",
+                    "/api/v1/auth/forgot", "/api/v1/auth/reset",
                     "/api/auth/login", "/api/auth/register",
                     "/api/auth/forgot-password", "/api/auth/reset-password").permitAll()
+                .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/swagger-resources/**").permitAll()
                 .requestMatchers("/error").permitAll()
                 .requestMatchers("/api/admin/**").hasRole("ADMINISTRATOR")
                 .requestMatchers("/api/worker/**").hasRole("WORKER")

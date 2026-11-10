@@ -8,6 +8,8 @@ import eci.edu.dosw.identity.exception.InvalidOtpException;
 import eci.edu.dosw.identity.exception.OtpRateLimitException;
 import eci.edu.dosw.identity.exception.UserNotFoundException;
 import eci.edu.dosw.identity.exception.WeakPasswordException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -29,14 +31,18 @@ import java.util.stream.Collectors;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
     @ExceptionHandler(InvalidCredentialsException.class)
     public ResponseEntity<ErrorResponse> handleInvalidCredentials(InvalidCredentialsException ex) {
+        log.warn("Excepción de seguridad: credenciales inválidas o usuario inactivo");
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body(new ErrorResponse(ex.getMessage()));
     }
 
     @ExceptionHandler(AccountLockedException.class)
     public ResponseEntity<ErrorResponse> handleAccountLocked(AccountLockedException ex) {
+        log.warn("Excepción de seguridad: cuenta bloqueada");
         return ResponseEntity.status(HttpStatus.LOCKED)
                 .body(new ErrorResponse(ex.getMessage()));
     }
@@ -86,4 +92,3 @@ public class GlobalExceptionHandler {
                 .body(new ErrorResponse(msg.isEmpty() ? "Solicitud invalida" : msg));
     }
 }
-

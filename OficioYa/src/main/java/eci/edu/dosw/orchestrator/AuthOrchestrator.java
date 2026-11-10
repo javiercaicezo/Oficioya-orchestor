@@ -30,10 +30,10 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * Coordina los flujos de autenticacion entre los modulos User, Identity y
- * Notification
- * (OR-01 a OR-03). Es el unico que conoce a todos; los modulos no se llaman
- * entre si.
+ * Coordina los flujos de autenticacion entre los modulos User, Identity y Notification
+ * (OR-01 a OR-03). Es el unico que conoce a todos; los modulos no se llaman entre si.
+ * Los registros de log siguen la politica de seguridad (RNF-03): siempre registran
+ * identificadores (userId), nunca correos ni contraseñas.
  */
 @Service
 public class AuthOrchestrator {
@@ -62,10 +62,8 @@ public class AuthOrchestrator {
     }
 
     /**
-     * Login: busca el perfil en User, rechaza si no existe o esta inactivo,
-     * verifica la contrasena
-     * en Identity y emite el JWT. Todos los rechazos usan el mismo mensaje generico
-     * (RF-02, RNF-07).
+     * Login: busca el perfil en User, rechaza si no existe o esta inactivo, verifica la contrasena
+     * en Identity y emite el JWT. Todos los rechazos usan el mismo mensaje generico (RF-02, RNF-07).
      */
     public LoginResponse login(LoginRequest request) {
         UserDto user = userService.findByEmail(request.email())
@@ -77,14 +75,13 @@ public class AuthOrchestrator {
         credentialService.authenticate(user.id(), request.password());
 
         String token = jwtProvider.generateToken(user.id(), nombresDeRoles(user.roles()));
+        log.info("Inicio de sesión exitoso para userId={}", user.id());
         return new LoginResponse(token, jwtProvider.getExpirationSeconds(), user.id(), user.roles());
     }
 
     /**
-     * Registro: valida todo lo que pueda fallar ANTES de crear nada, crea el perfil
-     * en User y luego la
-     * credencial en Identity. Si la credencial falla, se compensa borrando el
-     * perfil (OR-02).
+     * Registro: valida todo lo que pueda fallar ANTES de crear nada, crea el perfil en User y luego la
+     * credencial en Identity. Si la credencial falla, se compensa borrando el perfil (OR-02).
      */
     public UserDto register(RegisterRequest request) {
         if (request.roles() != null && request.roles().contains(Role.ADMINISTRATOR)) {
@@ -99,6 +96,7 @@ public class AuthOrchestrator {
                 new NewUser(request.name(), request.email(), request.roles()));
         try {
             credentialService.create(creado.id(), request.password());
+            log.info("Usuario registrado exitosamente con userId={}", creado.id());
         } catch (RuntimeException e) {
             deshacerPerfil(creado.id(), e);
             throw e;
@@ -113,13 +111,13 @@ public class AuthOrchestrator {
         UserDto user = userService.findById(userId).orElseThrow(UserNotFoundException::new);
 
         credentialService.changePassword(userId, request.currentPassword(), request.newPassword());
+        log.info("Contraseña actualizada exitosamente para userId={}", userId);
 
         avisarCambioDeContrasena(user.email());
     }
 
     /**
-     * Olvide mi contrasena (RF-05): genera un OTP y lo envia por correo. La
-     * respuesta es siempre la
+     * Olvide mi contrasena (RF-05): genera un OTP y lo envia por correo. La respuesta es siempre la
      * misma, exista o no la cuenta, para no revelar quien esta registrado.
      */
     public void forgotPassword(ForgotPasswordRequest request) {
@@ -130,14 +128,14 @@ public class AuthOrchestrator {
         try {
             String code = otpService.generate(user.get().id());
             notificationService.sendPasswordResetCode(user.get().email(), code, OtpService.VALID_MINUTES);
+            log.info("Código OTP de restablecimiento generado y enviado para userId={}", user.get().id());
         } catch (UserNotFoundException | OtpRateLimitException e) {
-            log.warn("Solicitud de codigo no atendida para el usuario {}: {}", user.get().id(), e.getMessage());
+            log.warn("Solicitud de código no atendida para userId={}: {}", user.get().id(), e.getMessage());
         }
     }
 
     /**
-     * Restablecer contrasena (RF-05): valida primero la contrasena nueva para no
-     * gastar el codigo en
+     * Restablecer contrasena (RF-05): valida primero la contrasena nueva para no gastar el codigo en
      * un error evitable, luego consume el OTP y cambia la contrasena.
      */
     public void resetPassword(ResetPasswordRequest request) {
@@ -152,6 +150,7 @@ public class AuthOrchestrator {
         }
         otpService.verifyAndConsume(user.id(), request.code());
         credentialService.resetPassword(user.id(), request.newPassword());
+        log.info("Contraseña restablecida exitosamente para userId={}", user.id());
 
         avisarCambioDeContrasena(user.email());
     }
@@ -160,15 +159,17 @@ public class AuthOrchestrator {
         try {
             notificationService.sendPasswordChangedNotice(email);
         } catch (RuntimeException e) {
-            log.warn("No se pudo enviar el aviso de cambio de contrasena: {}", e.getMessage());
+            log.warn("No se pudo enviar el aviso de cambio de contraseña: {}", e.getMessage());
         }
     }
 
     private void deshacerPerfil(Long userId, RuntimeException causa) {
         try {
             userService.deleteProfile(userId);
+            log.warn("Compensación ejecutada: perfil eliminado para userId={} debido a fallo en credenciales", userId);
         } catch (RuntimeException falloAlDeshacer) {
             causa.addSuppressed(falloAlDeshacer);
+            log.error("Fallo al compensar perfil para userId={}: {}", userId, falloAlDeshacer.getMessage());
         }
     }
 
