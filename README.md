@@ -21,8 +21,9 @@ Requiere Java 21 y Docker.
 
    Linux / macOS: `./mvnw spring-boot:run -Dspring-boot.run.profiles=local`
 
-El perfil `local` ya no se activa por defecto. En cualquier otro ambiente no se usa y se
-definen `JWT_SECRET`, `DB_URL`, `DB_USER` y `DB_PASSWORD`.
+El perfil `local` ya no se activa por defecto y trae su propio secreto JWT de desarrollo
+(`application-local.yml`). En cualquier otro ambiente es obligatorio definir `JWT_SECRET` (en Base64,
+mínimo 32 bytes); sin él la app no arranca. También se definen `DB_URL`, `DB_USER` y `DB_PASSWORD`.
 
 Usuarios de prueba (solo perfil `local`): `carlos@oficioya.com` (CLIENT) y `admin@oficioya.com`
 (ADMINISTRATOR). Sus contraseñas están en `DevDataSeeder`. Al arrancar se borran las credenciales
