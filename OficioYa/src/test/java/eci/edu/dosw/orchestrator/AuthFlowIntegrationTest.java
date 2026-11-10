@@ -136,13 +136,13 @@ class AuthFlowIntegrationTest {
     }
 
     @Test
-    void cincoCodigosErroneosInvalidanElCodigoVerdadero() {
+    void tresCodigosErroneosInvalidanElCodigoVerdadero() {
         registrar();
         orchestrator.forgotPassword(new ForgotPasswordRequest(CORREO));
         String real = codigoEnviado();
         String erroneo = real.equals("000000") ? "111111" : "000000";
 
-        for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < 3; i++) {
             assertThrows(InvalidOtpException.class,
                     () -> orchestrator.resetPassword(new ResetPasswordRequest(CORREO, erroneo, NUEVA)));
         }

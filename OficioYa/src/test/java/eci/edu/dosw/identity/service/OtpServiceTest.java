@@ -169,9 +169,9 @@ class OtpServiceTest {
     }
 
     @Test
-    void elQuintoIntentoFallidoInvalidaElCodigo() {
+    void elTercerIntentoFallidoInvalidaElCodigo() {
         Generado g = generar(1L);
-        g.otp().setAttempts(4);
+        g.otp().setAttempts(2);
         String incorrecto = g.code().equals("000000") ? "111111" : "000000";
 
         assertThrows(InvalidOtpException.class, () -> service.verifyAndConsume(1L, incorrecto));
