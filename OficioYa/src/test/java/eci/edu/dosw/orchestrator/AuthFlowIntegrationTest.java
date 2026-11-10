@@ -96,10 +96,10 @@ class AuthFlowIntegrationTest {
     }
 
     @Test
-    void cincoFallosBloqueanLaCuentaAunConLaClaveCorrecta() {
+    void tresFallosBloqueanLaCuentaAunConLaClaveCorrecta() {
         registrar();
 
-        for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < 3; i++) {
             assertThrows(InvalidCredentialsException.class,
                     () -> orchestrator.login(new LoginRequest(CORREO, "Incorrecta#123")));
         }

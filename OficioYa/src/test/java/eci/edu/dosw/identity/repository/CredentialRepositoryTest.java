@@ -78,13 +78,13 @@ class CredentialRepositoryTest {
     @Test
     void actualizaIntentosFallidosYBloqueo() {
         Credential credencial = credentialRepository.save(new Credential(6L, "hash-6", NOW));
-        credencial.setFailedAttempts(5);
+        credencial.setFailedAttempts(3);
         credencial.setLockedUntil(NOW.plusMinutes(15));
         credentialRepository.saveAndFlush(credencial);
 
         Credential recargada = credentialRepository.findByUserId(6L).orElseThrow();
 
-        assertEquals(5, recargada.getFailedAttempts());
+        assertEquals(3, recargada.getFailedAttempts());
         assertEquals(NOW.plusMinutes(15), recargada.getLockedUntil());
     }
 }
