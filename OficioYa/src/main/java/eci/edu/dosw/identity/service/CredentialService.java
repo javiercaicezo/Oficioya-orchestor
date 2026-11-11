@@ -27,7 +27,7 @@ import java.util.Optional;
 @Service
 public class CredentialService {
 
-    public static final int MAX_FAILED_ATTEMPTS = 5;
+    public static final int MAX_FAILED_ATTEMPTS = 3;
     public static final long LOCK_MINUTES = 15;
 
     private static final Logger log = LoggerFactory.getLogger(CredentialService.class);
