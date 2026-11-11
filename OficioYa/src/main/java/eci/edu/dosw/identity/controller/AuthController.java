@@ -24,6 +24,13 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+
+/**
+ * REST API Controller for Identity and Authentication in the OficioYa platform.
+ * Acts as a Facade and delegates business logic to the {@link AuthOrchestrator}.
+ * Responsible for payload validation, security context extraction, and fulfilling
+ * requirements RF-01 to RF-05 and RNF-06.
+ */
 @Tag(name = "Autenticación", description = "Operaciones de autenticación, registro y gestión de credenciales (RF-01 a RF-05, RNF-06)")
 @RestController
 @RequestMapping("/api/v1/auth")
