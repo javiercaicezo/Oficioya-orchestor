@@ -76,12 +76,12 @@ class AuthOrchestratorTest {
     void loginExitosoDevuelveElTokenConIdYRoles() {
         when(userService.findByEmail(CORREO)).thenReturn(Optional.of(usuario(true)));
         when(jwtProvider.generateToken(7L, List.of("CLIENT", "WORKER"))).thenReturn("token-abc");
-        when(jwtProvider.getExpirationSeconds()).thenReturn(1800L);
+        when(jwtProvider.getExpirationSeconds()).thenReturn(900L);
 
         LoginResponse respuesta = orchestrator.login(new LoginRequest(CORREO, CLAVE));
 
         assertEquals("token-abc", respuesta.token());
-        assertEquals(1800L, respuesta.expiresInSeconds());
+        assertEquals(900L, respuesta.expiresInSeconds());
         assertEquals(7L, respuesta.userId());
         assertEquals(Set.of(Role.CLIENT, Role.WORKER), respuesta.roles());
         verify(credentialService).authenticate(7L, CLAVE);
