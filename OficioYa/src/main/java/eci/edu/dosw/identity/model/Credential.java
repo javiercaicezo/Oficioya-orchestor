@@ -10,8 +10,15 @@ import jakarta.persistence.Table;
 import java.time.LocalDateTime;
 
 /**
- * Credencial de acceso de un usuario. user_id es una referencia logica al
- * modulo User (no hay llave foranea fisica). Solo guarda el hash de la contrasena.
+ * JPA Entity representing a user's security credentials and authentication state.
+ * 
+ * <p>Architecture Note: This entity maintains strict domain isolation. The {@code userId} 
+ * field acts as a logical reference to the User Domain without enforcing a physical 
+ * database foreign key constraint, adhering to Bounded Context principles.</p>
+ * 
+ * <p>It stores the cryptographically secure {@code passwordHash} and tracks security 
+ * metrics such as failed login attempts and temporary account locks to prevent 
+ * brute-force attacks.</p>
  */
 @Entity
 @Table(name = "credential")
