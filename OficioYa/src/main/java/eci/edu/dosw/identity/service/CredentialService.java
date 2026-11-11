@@ -19,10 +19,10 @@ import java.time.temporal.ChronoUnit;
 import java.util.Optional;
 
 /**
- * Gestiona las credenciales: guardado cifrado, verificacion, bloqueo por
- * intentos fallidos,
- * cambio y restablecimiento de contrasena, y borrado (compensacion de un
- * registro fallido).
+ * Core business logic service for credential management.
+ * Handles secure storage, authentication verification, password updates, 
+ * and enforces security mechanisms such as brute-force lockouts and 
+ * time-based session invalidation.
  */
 @Service
 public class CredentialService {
@@ -47,7 +47,14 @@ public class CredentialService {
         this.clock = clock;
     }
 
-    /** Crea la credencial de un usuario con la contrasena validada y cifrada. */
+    /**
+     * Creates credentials for a new user with a validated and encrypted password.
+     *
+     * @param userId      The user's unique identifier.
+     * @param rawPassword The plaintext password to be validated and hashed.
+     * @return The persisted {@link Credential} entity.
+     * @throws DuplicateUserException if credentials already exist for this user.
+     */
     @Transactional
     public Credential create(Long userId, String rawPassword) {
         passwordPolicy.validate(rawPassword);
@@ -61,9 +68,17 @@ public class CredentialService {
     }
 
     /**
-     * Verifica usuario y contrasena. Los intentos fallidos deben guardarse aunque
-     * se lance la
-     * excepcion, por eso noRollbackFor: sin eso, la transaccion los desharia.
+     * Authenticates a user against their stored credentials.
+     * 
+     * Security Note: The {@code noRollbackFor} configuration ensures that failed 
+     * login attempts are persisted to the database to support brute-force prevention, 
+     * even when an authentication exception is thrown.
+     *
+     * @param userId      The logical reference to the user.
+     * @param rawPassword The plain text password provided by the client.
+     * @return The updated {@link Credential} entity upon successful authentication.
+     * @throws InvalidCredentialsException if the user is not found or the password mismatch.
+     * @throws AccountLockedException if the user has exceeded the max failed attempts.
      */
     @Transactional(noRollbackFor = { InvalidCredentialsException.class, AccountLockedException.class })
     public Credential authenticate(Long userId, String rawPassword) {
@@ -75,7 +90,13 @@ public class CredentialService {
     }
 
     /**
-     * Cambio de contrasena de un usuario autenticado: exige la contrasena actual.
+     * Changes the password of an authenticated user after verifying their current password.
+     *
+     * @param userId          The user's unique identifier.
+     * @param currentPassword The user's current password for verification.
+     * @param newPassword     The new password to set.
+     * @throws InvalidCredentialsException if the current password does not match.
+     * @throws AccountLockedException      if the account is locked due to excessive failed attempts.
      */
     @Transactional(noRollbackFor = { InvalidCredentialsException.class, AccountLockedException.class })
     public void changePassword(Long userId, String currentPassword, String newPassword) {
@@ -84,7 +105,14 @@ public class CredentialService {
         applyNewPassword(credential, newPassword);
     }
 
-    /** Restablece la contrasena despues de validar un OTP. No pide la actual. */
+    /**
+     * Resets a user's password following a successful OTP verification.
+     * Does not require the current password.
+     *
+     * @param userId      The user's unique identifier.
+     * @param newPassword The new password to set.
+     * @throws UserNotFoundException if no credentials exist for the user.
+     */
     @Transactional
     public void resetPassword(Long userId, String newPassword) {
         Credential credential = credentialRepository.findByUserId(userId)
@@ -94,8 +122,12 @@ public class CredentialService {
     }
 
     /**
-     * Valida la nueva contrasena contra la politica y contra la actual, sin cambiar
-     * nada.
+     * Validates a candidate new password against security policies and the current password hash
+     * without modifying the stored credentials.
+     *
+     * @param userId      The user's unique identifier.
+     * @param newPassword The new password to validate.
+     * @throws UserNotFoundException if no credentials exist for the user.
      */
     @Transactional(readOnly = true)
     public void validateNewPassword(Long userId, String newPassword) {
@@ -105,9 +137,14 @@ public class CredentialService {
     }
 
     /**
-     * true si el token (iat) se emitió antes del último cambio de contraseña, o si la credencial ya
-     * no existe. Un token emitido en el mismo segundo del cambio se considera válido: iat va en
-     * segundos y password_changed_at se trunca a segundos para compararlos sin falsos rechazos.
+     * Checks if a token's issuance timestamp (iat) precedes the user's latest password change,
+     * or if the credential no longer exists.
+     * Tokens issued within the same second as the change are considered valid to avoid false rejections.
+     *
+     * @param userId   The user's unique identifier.
+     * @param issuedAt The instant when the token was issued.
+     * @return {@code true} if the token was issued before the last password change or if credentials don't exist;
+     *         {@code false} otherwise.
      */
     @Transactional(readOnly = true)
     public boolean wasIssuedBeforePasswordChange(Long userId, Instant issuedAt) {
@@ -124,8 +161,10 @@ public class CredentialService {
     }
 
     /**
-     * Borra la credencial. El orquestador lo usa para compensar un registro
-     * fallido.
+     * Deletes user credentials. Used as a compensating action by the orchestrator
+     * in the event of a failed registration workflow.
+     *
+     * @param userId The unique identifier of the user whose credentials should be removed.
      */
     @Transactional
     public void delete(Long userId) {
@@ -133,14 +172,30 @@ public class CredentialService {
         log.info("Credencial eliminada para userId={}", userId);
     }
 
+    /**
+     * Checks whether credentials exist for a given user.
+     *
+     * @param userId The unique identifier of the user.
+     * @return {@code true} if credentials exist, {@code false} otherwise.
+     */
     public boolean exists(Long userId) {
         return credentialRepository.existsByUserId(userId);
     }
 
+    /**
+     * Validates the provided password against the stored password hash and verifies
+     * that the account is not locked.
+     *
+     * Note: Uses generic exceptions to prevent user enumeration attacks (RNF-07).
+     *
+     * @param userId      The user's unique identifier.
+     * @param rawPassword The plaintext password to verify.
+     * @return The verified {@link Credential} entity.
+     * @throws AccountLockedException      if the account is locked due to previous failed attempts.
+     * @throws InvalidCredentialsException if the password is incorrect or user credentials are not found.
+     */
     private Credential verifyCurrentPassword(Long userId, String rawPassword) {
         LocalDateTime now = now();
-        // Mensaje generico: no revela si el usuario existe o si fallo la contrasena
-        // (RNF-07).
         Credential credential = credentialRepository.findByUserId(userId)
                 .orElseThrow(InvalidCredentialsException::new);
 
@@ -154,6 +209,12 @@ public class CredentialService {
         return credential;
     }
 
+    /**
+     * Increments failed login attempts and temporarily locks the account if the threshold is reached.
+     *
+     * @param credential The credential entity being updated.
+     * @param now        The current timestamp.
+     */
     private void registerFailedAttempt(Credential credential, LocalDateTime now) {
         int attempts = credential.getFailedAttempts() + 1;
         if (attempts >= MAX_FAILED_ATTEMPTS) {
@@ -167,6 +228,12 @@ public class CredentialService {
         credentialRepository.save(credential);
     }
 
+    /**
+     * Updates the password hash, updates the password change timestamp, and resets failed attempts and lock status.
+     *
+     * @param credential  The credential entity being updated.
+     * @param newPassword The new plaintext password.
+     */
     private void applyNewPassword(Credential credential, String newPassword) {
         credential.setPasswordHash(passwordEncoder.encode(newPassword));
         credential.setPasswordChangedAt(now());
@@ -176,6 +243,11 @@ public class CredentialService {
         log.info("Hash de contraseña actualizado exitosamente para userId={}", credential.getUserId());
     }
 
+    /**
+     * Returns the current date and time based on the injected clock.
+     *
+     * @return Current {@link LocalDateTime}.
+     */
     private LocalDateTime now() {
         return LocalDateTime.now(clock);
     }
