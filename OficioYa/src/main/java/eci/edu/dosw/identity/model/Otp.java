@@ -11,7 +11,18 @@ import jakarta.persistence.Table;
 
 import java.time.LocalDateTime;
 
-/** Codigo de un solo uso (por ejemplo, recuperacion de contrasena). Solo se guarda su hash. */
+/**
+ * JPA Entity representing the lifecycle and state of a One-Time Password (OTP).
+ * 
+ * Security Features:
+ * Stores only the cryptographic hash of the OTP ({@code codeHash}), never plain text.
+ * Prevents replay attacks via the {@code used} flag.
+ * Mitigates brute-force attacks by tracking validation {@code attempts}.
+ *  enforces strict time-to-live using {@code createdAt} and {@code expiresAt}. 
+ * 
+ * Like the Credential entity, {@code userId} acts as a logical reference 
+ * rather than a physical foreign key constraint.
+ */
 @Entity
 @Table(name = "otp")
 public class Otp {
