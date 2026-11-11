@@ -15,7 +15,7 @@ import java.util.List;
 
 /**
  * Genera y valida tokens JWT firmados con HS256.
- * Claims: sub (id del usuario), roles, iat (emision) y exp (expiracion, 30 min
+ * Claims: sub (id del usuario), roles, iat (emision) y exp (expiracion, 15 min
  * por defecto).
  */
 @Component
@@ -25,7 +25,7 @@ public class JwtProvider {
     private final long expirationMs;
 
     public JwtProvider(@Value("${jwt.secret}") String secret,
-            @Value("${jwt.expiration.ms:1800000}") long expirationMs) {
+            @Value("${jwt.expiration.ms:900000}") long expirationMs) {
         // El secreto va en Base64 y debe decodificar a minimo 32 bytes.
         this.key = Keys.hmacShaKeyFor(Decoders.BASE64.decode(secret));
         this.expirationMs = expirationMs;
