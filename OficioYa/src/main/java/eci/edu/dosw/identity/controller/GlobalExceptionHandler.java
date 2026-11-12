@@ -19,14 +19,11 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import java.util.stream.Collectors;
 
 /**
- * Mapeo de excepciones a codigos de estado HTTP (Punto 14):
- * - credenciales invalidas -> 401
- * - cuenta bloqueada -> 423
- * - contrasena debil -> 400
- * - codigo invalido -> 400
- * - limite de solicitudes -> 429
- * - correo duplicado -> 409
- * - rol prohibido -> 403
+ * Global exception handler (Controller Advice) for the Identity module.
+ * Intercepts domain-specific exceptions and translates them into standardized HTTP 
+ * responses using the {@link ErrorResponse} DTO. It centralizes error management, 
+ * prevents raw stack traces from reaching the client, and ensures compliance with 
+ * RESTful HTTP status codes (e.g., 401, 403, 409) as defined in the API contracts.
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {

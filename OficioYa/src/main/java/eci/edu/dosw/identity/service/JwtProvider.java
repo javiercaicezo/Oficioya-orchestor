@@ -14,9 +14,14 @@ import java.util.Date;
 import java.util.List;
 
 /**
- * Genera y valida tokens JWT firmados con HS256.
- * Claims: sub (id del usuario), roles, iat (emision) y exp (expiracion, 15 min
- * por defecto).
+ * Security component responsible for the lifecycle of JSON Web Tokens (JWT).
+ * 
+ * Handles the cryptographic signing (HMAC) and validation of JWTs. It encapsulates 
+ * user identity (subject) and authorization context (roles) into stateless tokens, 
+ * ensuring data integrity and enforcing time-based expiration policies.
+ * 
+ * Secrets and expiration times are externalized to application properties 
+ * to comply with 12-Factor App methodology.
  */
 @Component
 public class JwtProvider {

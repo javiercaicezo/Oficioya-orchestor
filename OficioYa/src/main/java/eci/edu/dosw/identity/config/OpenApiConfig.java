@@ -9,8 +9,9 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * Configuración de OpenAPI / Swagger (Paso 16, RNF-06).
- * Define metadata y el esquema de autenticación Bearer JWT.
+ * This configuration sets up the OpenAPI/Swagger documentation for the OficioYa application.
+ *  It defines the API metadata and configures a global security scheme (HTTP Bearer) to enable 
+ *  JWT authentication testing directly from the Swagger UI.
  */
 @Configuration
 public class OpenApiConfig {

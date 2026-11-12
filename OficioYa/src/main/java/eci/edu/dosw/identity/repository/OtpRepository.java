@@ -10,6 +10,17 @@ import org.springframework.data.repository.query.Param;
 import java.time.LocalDateTime;
 import java.util.Optional;
 
+/**
+ * Spring Data JPA Repository for the {@link Otp} entity.
+ * Handles the persistence lifecycle of One-Time Passwords.
+ * 
+ * Key Responsibilities:
+ *   Retrieval of valid, unexpired OTPs via complex derived queries
+ *   Fraud prevention by tracking OTP issuance rates (Rate Limiting).
+ *   State invalidation via explicit JPQL updates to ensure only one 
+ *       OTP remains active per user and purpose.
+ */
+
 public interface OtpRepository extends JpaRepository<Otp, Long> {
 
     Optional<Otp> findFirstByUserIdAndPurposeAndUsedFalseAndExpiresAtAfterOrderByCreatedAtDesc(

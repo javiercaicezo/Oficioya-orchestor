@@ -30,10 +30,13 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * Coordina los flujos de autenticacion entre los modulos User, Identity y Notification
- * (OR-01 a OR-03). Es el unico que conoce a todos; los modulos no se llaman entre si.
- * Los registros de log siguen la politica de seguridad (RNF-03): siempre registran
- * identificadores (userId), nunca correos ni contraseñas.
+ * Coordinates authentication and identity workflows across the User, Identity, and Notification modules
+ * (OR-01 through OR-03). Serves as the single orchestrator with knowledge of all modules; domain modules
+ * do not invoke each other directly.
+ * <p>
+ * Security Logging Compliance (RNF-03): Logs record user identifiers (userId) rather than sensitive
+ * personal data such as raw emails or passwords.
+ * </p>
  */
 @Service
 public class AuthOrchestrator {
@@ -47,6 +50,16 @@ public class AuthOrchestrator {
     private final PasswordPolicyService passwordPolicy;
     private final JwtProvider jwtProvider;
 
+    /**
+     * Constructs a new AuthOrchestrator with all necessary collaborating services.
+     *
+     * @param userService         The user profile service.
+     * @param notificationService The notification delivery service.
+     * @param credentialService   The credential storage and authentication service.
+     * @param otpService          The one-time password management service.
+     * @param passwordPolicy      The password complexity validation service.
+     * @param jwtProvider         The JSON Web Token generator and validator.
+     */
     public AuthOrchestrator(UserService userService,
             NotificationService notificationService,
             CredentialService credentialService,
@@ -62,8 +75,13 @@ public class AuthOrchestrator {
     }
 
     /**
-     * Login: busca el perfil en User, rechaza si no existe o esta inactivo, verifica la contrasena
-     * en Identity y emite el JWT. Todos los rechazos usan el mismo mensaje generico (RF-02, RNF-07).
+     * Authenticates a user: locates the user profile in the User domain, verifies that the account
+     * is active, validates credentials via the Identity module, and issues a signed JWT (RF-01, RF-02, RF-08).
+     * All authentication rejections return the same generic message to prevent account enumeration (RNF-07).
+     *
+     * @param request The login payload containing the user's email and plaintext password.
+     * @return A {@link LoginResponse} containing the signed JWT, expiration duration, userId, and assigned roles.
+     * @throws InvalidCredentialsException if credentials do not match or the user is not found or inactive.
      */
     public LoginResponse login(LoginRequest request) {
         UserDto user = userService.findByEmail(request.email())
@@ -80,8 +98,15 @@ public class AuthOrchestrator {
     }
 
     /**
-     * Registro: valida todo lo que pueda fallar ANTES de crear nada, crea el perfil en User y luego la
-     * credencial en Identity. Si la credencial falla, se compensa borrando el perfil (OR-02).
+     * Registers a new user: validates all pre-conditions before creating any entities, creates the user
+     * profile in the User domain, and persists credentials in the Identity domain (HU 1.1, OR-02).
+     * If credential creation fails, an automated compensating transaction (Saga pattern) deletes the created profile.
+     *
+     * @param request The registration payload containing name, email, password, and requested roles.
+     * @return The created {@link UserDto} profile.
+     * @throws ForbiddenRoleException if the registration attempts to request the restricted ADMINISTRATOR role.
+     * @throws DuplicateUserException if an account already exists with the specified email.
+     * @throws eci.edu.dosw.identity.exception.WeakPasswordException if the password does not satisfy security policies.
      */
     public UserDto register(RegisterRequest request) {
         if (request.roles() != null && request.roles().contains(Role.ADMINISTRATOR)) {
@@ -105,7 +130,13 @@ public class AuthOrchestrator {
     }
 
     /**
-     * Cambio de contrasena de un usuario autenticado (RF-04). El id sale del token.
+     * Changes the password of an authenticated user (RF-04).
+     * Verifies the user's current password and validates the new password against policies.
+     * Sends an email notification notifying the user that the password was updated.
+     *
+     * @param userId  The authenticated user ID extracted from the token context.
+     * @param request The password change payload containing current and new passwords.
+     * @throws UserNotFoundException if no user profile exists for the given ID.
      */
     public void changePassword(Long userId, ChangePasswordRequest request) {
         UserDto user = userService.findById(userId).orElseThrow(UserNotFoundException::new);
@@ -117,8 +148,11 @@ public class AuthOrchestrator {
     }
 
     /**
-     * Olvide mi contrasena (RF-05): genera un OTP y lo envia por correo. La respuesta es siempre la
-     * misma, exista o no la cuenta, para no revelar quien esta registrado.
+     * Initiates the forgotten password workflow (RF-05).
+     * Generates a 6-digit OTP and delivers it via email if the account exists and is active.
+     * Always completes silently without throwing exceptions on non-existent accounts to prevent account enumeration.
+     *
+     * @param request The forgot password payload containing the target email.
      */
     public void forgotPassword(ForgotPasswordRequest request) {
         Optional<UserDto> user = userService.findByEmail(request.email()).filter(UserDto::active);
@@ -135,8 +169,12 @@ public class AuthOrchestrator {
     }
 
     /**
-     * Restablecer contrasena (RF-05): valida primero la contrasena nueva para no gastar el codigo en
-     * un error evitable, luego consume el OTP y cambia la contrasena.
+     * Resets a user's password using a verified OTP (RF-05).
+     * Validates the new password against security policies prior to consuming the OTP to avoid
+     * burning the token on preventable policy validation failures.
+     *
+     * @param request The reset password payload containing email, OTP code, and the new password.
+     * @throws InvalidOtpException if the user is not found, the OTP code is invalid/expired, or attempts are exceeded.
      */
     public void resetPassword(ResetPasswordRequest request) {
         UserDto user = userService.findByEmail(request.email())
@@ -155,6 +193,12 @@ public class AuthOrchestrator {
         avisarCambioDeContrasena(user.email());
     }
 
+    /**
+     * Sends an email notification informing the user that their password was changed.
+     * Fails gracefully to prevent notification issues from aborting the primary transaction.
+     *
+     * @param email The recipient's email address.
+     */
     private void avisarCambioDeContrasena(String email) {
         try {
             notificationService.sendPasswordChangedNotice(email);
@@ -163,6 +207,13 @@ public class AuthOrchestrator {
         }
     }
 
+    /**
+     * Executes compensating rollback logic by deleting the created user profile
+     * if credential creation fails during registration (OR-02).
+     *
+     * @param userId The ID of the user profile to delete.
+     * @param causa  The original exception that triggered the compensation.
+     */
     private void deshacerPerfil(Long userId, RuntimeException causa) {
         try {
             userService.deleteProfile(userId);
@@ -173,6 +224,12 @@ public class AuthOrchestrator {
         }
     }
 
+    /**
+     * Maps user role objects to a sorted list of uppercase role names for JWT claims.
+     *
+     * @param roles The set of {@link Role} enums.
+     * @return Sorted list of role names.
+     */
     private List<String> nombresDeRoles(Set<Role> roles) {
         return roles.stream().map(Role::name).sorted().toList();
     }
