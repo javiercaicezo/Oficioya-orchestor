@@ -36,7 +36,7 @@ public class OtpService {
     public static final int CODE_DIGITS = 6;
     public static final int VALID_MINUTES = 15;
     public static final int MAX_REQUESTS_PER_HOUR = 3;
-    public static final int MAX_ATTEMPTS = 5;
+    public static final int MAX_ATTEMPTS = 3;
 
     private static final OtpPurpose PURPOSE = OtpPurpose.RESET_PASSWORD;
 

@@ -16,7 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /** Prueba unitaria pura: no levanta Spring. */
 class JwtProviderTest {
 
-    private static final long TREINTA_MINUTOS_MS = 1_800_000L;
+    private static final long QUINCE_MINUTOS_MS = 900_000L;
 
     private static String secreto(String texto32) {
         return Base64.getEncoder().encodeToString(texto32.getBytes(StandardCharsets.UTF_8));
@@ -25,7 +25,7 @@ class JwtProviderTest {
     private static final String SECRETO_A = secreto("0123456789abcdef0123456789abcdef");
     private static final String SECRETO_B = secreto("fedcba9876543210fedcba9876543210");
 
-    private final JwtProvider provider = new JwtProvider(SECRETO_A, TREINTA_MINUTOS_MS);
+    private final JwtProvider provider = new JwtProvider(SECRETO_A, QUINCE_MINUTOS_MS);
 
     @Test
     void generaUnTokenValido() {
@@ -67,8 +67,8 @@ class JwtProviderTest {
     }
 
     @Test
-    void laExpiracionPorDefectoSonTreintaMinutos() {
-        assertEquals(1800, provider.getExpirationSeconds());
+    void laExpiracionPorDefectoSonQuinceMinutos() {
+        assertEquals(900, provider.getExpirationSeconds());
     }
 
     @Test
@@ -78,7 +78,7 @@ class JwtProviderTest {
         Instant emitido = provider.getIssuedAtFromToken(token);
         Instant expira = provider.parse(token).getExpiration().toInstant();
 
-        assertEquals(1800, expira.getEpochSecond() - emitido.getEpochSecond());
+        assertEquals(900, expira.getEpochSecond() - emitido.getEpochSecond());
     }
 
     @Test
@@ -92,7 +92,7 @@ class JwtProviderTest {
 
     @Test
     void rechazaUnTokenFirmadoConOtraClave() {
-        JwtProvider ajeno = new JwtProvider(SECRETO_B, TREINTA_MINUTOS_MS);
+        JwtProvider ajeno = new JwtProvider(SECRETO_B, QUINCE_MINUTOS_MS);
         String tokenAjeno = ajeno.generateToken(1L, List.of("ADMINISTRATOR"));
 
         assertFalse(provider.isValid(tokenAjeno));
@@ -109,6 +109,6 @@ class JwtProviderTest {
     void rechazaUnaClaveDemasiadoCorta() {
         String corta = secreto("solo16bytes_aqui");
 
-        assertThrows(RuntimeException.class, () -> new JwtProvider(corta, TREINTA_MINUTOS_MS));
+        assertThrows(RuntimeException.class, () -> new JwtProvider(corta, QUINCE_MINUTOS_MS));
     }
 }

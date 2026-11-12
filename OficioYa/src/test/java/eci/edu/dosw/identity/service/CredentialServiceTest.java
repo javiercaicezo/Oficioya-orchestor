@@ -98,7 +98,7 @@ class CredentialServiceTest {
     @Test
     void authenticateExitosoReiniciaIntentosYRegistraElLogin() {
         Credential c = credencial(1L);
-        c.setFailedAttempts(3);
+        c.setFailedAttempts(2);
 
         Credential resultado = service.authenticate(1L, VALIDA);
 
@@ -141,9 +141,9 @@ class CredentialServiceTest {
     }
 
     @Test
-    void elQuintoIntentoFallidoBloqueaLaCuentaQuinceMinutos() {
+    void elTercerIntentoFallidoBloqueaLaCuentaQuinceMinutos() {
         Credential c = credencial(1L);
-        c.setFailedAttempts(4);
+        c.setFailedAttempts(2);
 
         assertThrows(InvalidCredentialsException.class, () -> service.authenticate(1L, "Incorrecta#2026x"));
 
@@ -227,7 +227,7 @@ class CredentialServiceTest {
     @Test
     void resetPasswordCambiaLaContrasenaYDesbloqueaLaCuenta() {
         Credential c = credencial(1L);
-        c.setFailedAttempts(3);
+        c.setFailedAttempts(2);
         c.setLockedUntil(NOW.plusMinutes(10));
 
         service.resetPassword(1L, NUEVA);

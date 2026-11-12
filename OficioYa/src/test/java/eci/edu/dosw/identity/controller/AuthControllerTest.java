@@ -64,7 +64,7 @@ class AuthControllerTest {
         @DisplayName("200 OK cuando las credenciales son correctas")
         void loginExitoso() throws Exception {
             when(authOrchestrator.login(any(LoginRequest.class)))
-                    .thenReturn(new LoginResponse("jwt-token-valido", 1800, 1L, Set.of(Role.CLIENT)));
+                    .thenReturn(new LoginResponse("jwt-token-valido", 900, 1L, Set.of(Role.CLIENT)));
 
             mockMvc.perform(post("/api/v1/auth/login")
                             .contentType(MediaType.APPLICATION_JSON)
@@ -76,7 +76,7 @@ class AuthControllerTest {
                                     """))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.token", is("jwt-token-valido")))
-                    .andExpect(jsonPath("$.expiresInSeconds", is(1800)))
+                    .andExpect(jsonPath("$.expiresInSeconds", is(900)))
                     .andExpect(jsonPath("$.userId", is(1)));
         }
 
