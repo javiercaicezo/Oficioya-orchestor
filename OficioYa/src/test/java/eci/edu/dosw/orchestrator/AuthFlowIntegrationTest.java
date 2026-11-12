@@ -64,7 +64,7 @@ class AuthFlowIntegrationTest {
     }
 
     private void registrar() {
-        orchestrator.register(new RegisterRequest("Ana", CORREO, CLAVE, Set.of(Role.CLIENT)));
+        orchestrator.register(new RegisterRequest("Ana", CORREO, CLAVE, Set.of(Role.CONTRATANTE)));
     }
 
     private String codigoEnviado() {
@@ -83,7 +83,7 @@ class AuthFlowIntegrationTest {
 
         assertTrue(jwtProvider.isValid(respuesta.token()));
         assertEquals(respuesta.userId(), jwtProvider.getUserIdFromToken(respuesta.token()));
-        assertEquals(Set.of(Role.CLIENT), respuesta.roles());
+        assertEquals(Set.of(Role.CONTRATANTE), respuesta.roles());
     }
 
     @Test

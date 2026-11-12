@@ -29,23 +29,23 @@ class JwtProviderTest {
 
     @Test
     void generaUnTokenValido() {
-        String token = provider.generateToken(7L, List.of("CLIENT"));
+        String token = provider.generateToken(7L, List.of("CONTRATANTE"));
 
         assertTrue(provider.isValid(token));
     }
 
     @Test
     void elTokenContieneElIdDelUsuario() {
-        String token = provider.generateToken(42L, List.of("CLIENT"));
+        String token = provider.generateToken(42L, List.of("CONTRATANTE"));
 
         assertEquals(42L, provider.getUserIdFromToken(token));
     }
 
     @Test
     void elTokenContieneTodosLosRoles() {
-        String token = provider.generateToken(1L, List.of("CLIENT", "WORKER"));
+        String token = provider.generateToken(1L, List.of("CONTRATANTE", "TRABAJADOR"));
 
-        assertEquals(List.of("CLIENT", "WORKER"), provider.getRolesFromToken(token));
+        assertEquals(List.of("CONTRATANTE", "TRABAJADOR"), provider.getRolesFromToken(token));
     }
 
     @Test
@@ -59,7 +59,7 @@ class JwtProviderTest {
     void guardaLaFechaDeEmisionReciente() {
         Instant antes = Instant.now().minusSeconds(2);
 
-        String token = provider.generateToken(1L, List.of("CLIENT"));
+        String token = provider.generateToken(1L, List.of("CONTRATANTE"));
         Instant emitido = provider.getIssuedAtFromToken(token);
 
         assertTrue(emitido.isAfter(antes));
@@ -73,7 +73,7 @@ class JwtProviderTest {
 
     @Test
     void elTokenExpiraDespuesDeLaVigenciaConfigurada() {
-        String token = provider.generateToken(1L, List.of("CLIENT"));
+        String token = provider.generateToken(1L, List.of("CONTRATANTE"));
 
         Instant emitido = provider.getIssuedAtFromToken(token);
         Instant expira = provider.parse(token).getExpiration().toInstant();
@@ -84,7 +84,7 @@ class JwtProviderTest {
     @Test
     void rechazaUnTokenVencido() {
         JwtProvider caducado = new JwtProvider(SECRETO_A, -1000L);
-        String token = caducado.generateToken(1L, List.of("CLIENT"));
+        String token = caducado.generateToken(1L, List.of("CONTRATANTE"));
 
         assertFalse(caducado.isValid(token));
         assertThrows(ExpiredJwtException.class, () -> caducado.parse(token));
@@ -93,7 +93,7 @@ class JwtProviderTest {
     @Test
     void rechazaUnTokenFirmadoConOtraClave() {
         JwtProvider ajeno = new JwtProvider(SECRETO_B, QUINCE_MINUTOS_MS);
-        String tokenAjeno = ajeno.generateToken(1L, List.of("ADMINISTRATOR"));
+        String tokenAjeno = ajeno.generateToken(1L, List.of("ADMIN"));
 
         assertFalse(provider.isValid(tokenAjeno));
     }

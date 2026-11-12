@@ -94,7 +94,7 @@ class SecurityIntegrationTest {
     // --- token válido ---
     @Test
     void unTokenValidoPasaYElControladorVeElIdDelToken() throws Exception {
-        get("/api/probe", token("CLIENT")).andExpect(status().isOk()).andExpect(content().string("1"));
+        get("/api/probe", token("CONTRATANTE")).andExpect(status().isOk()).andExpect(content().string("1"));
     }
 
     // --- sin token / inválido ---
@@ -124,7 +124,7 @@ class SecurityIntegrationTest {
     // --- vencido ---
     @Test
     void tokenVencidoDevuelve401() throws Exception {
-        String vencido = new JwtProvider(secret, -1000L).generateToken(USER_ID, List.of("CLIENT"));
+        String vencido = new JwtProvider(secret, -1000L).generateToken(USER_ID, List.of("CONTRATANTE"));
         get("/api/probe", vencido).andExpect(status().isUnauthorized());
     }
 
@@ -132,15 +132,15 @@ class SecurityIntegrationTest {
     @Test
     void tokenFirmadoConOtraClaveDevuelve401() throws Exception {
         String otraClave = Encoders.BASE64.encode(Jwts.SIG.HS256.key().build().getEncoded());
-        String ajeno = new JwtProvider(otraClave, 1_800_000L).generateToken(USER_ID, List.of("ADMINISTRATOR"));
+        String ajeno = new JwtProvider(otraClave, 900_000L).generateToken(USER_ID, List.of("ADMIN"));
         get("/api/admin/probe", ajeno).andExpect(status().isUnauthorized());
     }
 
     @Test
     void cambiarElRolDentroDelTokenInvalidaLaFirma() throws Exception {
-        String[] partes = token("CLIENT").split("\\.");
+        String[] partes = token("CONTRATANTE").split("\\.");
         String original = new String(Base64.getUrlDecoder().decode(partes[1]), UTF_8);
-        String alterado = original.replace("\"CLIENT\"", "\"ADMINISTRATOR\"");
+        String alterado = original.replace("\"CONTRATANTE\"", "\"ADMIN\"");
         assertNotEquals(original, alterado);
         String falso = partes[0] + "."
                 + Base64.getUrlEncoder().withoutPadding().encodeToString(alterado.getBytes(UTF_8))
@@ -151,13 +151,13 @@ class SecurityIntegrationTest {
     // --- roles (RF-07) ---
     @Test
     void elRolCorrectoAccedeALaRutaDeRol() throws Exception {
-        get("/api/admin/probe", token("ADMINISTRATOR")).andExpect(status().isOk());
-        get("/api/worker/probe", token("WORKER")).andExpect(status().isOk());
+        get("/api/admin/probe", token("ADMIN")).andExpect(status().isOk());
+        get("/api/worker/probe", token("TRABAJADOR")).andExpect(status().isOk());
     }
 
     @Test
     void unRolInsuficienteRecibe403() throws Exception {
-        get("/api/admin/probe", token("CLIENT")).andExpect(status().isForbidden());
+        get("/api/admin/probe", token("CONTRATANTE")).andExpect(status().isForbidden());
     }
 
     @Test
@@ -181,7 +181,7 @@ class SecurityIntegrationTest {
     // --- contraseña cambiada ---
     @Test
     void unTokenEmitidoAntesDelCambioDeContrasenaDevuelve401() throws Exception {
-        String viejo = token("CLIENT");
+        String viejo = token("CONTRATANTE");
         Credential c = credentialRepository.findByUserId(USER_ID).orElseThrow();
         c.setPasswordChangedAt(LocalDateTime.now(clock).plusMinutes(5));
         credentialRepository.save(c);
@@ -190,7 +190,7 @@ class SecurityIntegrationTest {
 
     @Test
     void unTokenDelMismoSegundoDelCambioSigueValido() throws Exception {
-        String nuevo = token("CLIENT");
+        String nuevo = token("CONTRATANTE");
         Instant iat = jwtProvider.getIssuedAtFromToken(nuevo);
         Credential c = credentialRepository.findByUserId(USER_ID).orElseThrow();
         c.setPasswordChangedAt(LocalDateTime.ofInstant(iat, clock.getZone()).plusNanos(500_000_000));
@@ -200,7 +200,7 @@ class SecurityIntegrationTest {
 
     @Test
     void unTokenDeUnUsuarioSinCredencialDevuelve401() throws Exception {
-        String t = token("CLIENT");
+        String t = token("CONTRATANTE");
         credentialRepository.deleteAll();
         get("/api/probe", t).andExpect(status().isUnauthorized());
     }
@@ -208,26 +208,17 @@ class SecurityIntegrationTest {
     // --- rutas públicas ---
     @Test
     void lasRutasPublicasNoExigenToken() throws Exception {
-        for (String ruta : List.of("/api/v1/auth/login", "/api/v1/auth/register",
-                "/api/v1/auth/forgot", "/api/v1/auth/reset")) {
+        for (String ruta : List.of("/api/auth/login", "/api/auth/register",
+                "/api/auth/forgot-password", "/api/auth/reset-password")) {
             mvc.perform(MockMvcRequestBuilders.post(ruta))
                     .andExpect(result -> assertNotEquals(401, result.getResponse().getStatus()));
         }
     }
 
     @Test
-    void lasRutasViejasSinVersionYaNoSonPublicas() throws Exception {
-        for (String ruta : List.of("/api/auth/login", "/api/auth/register",
-                "/api/auth/forgot-password", "/api/auth/reset-password")) {
-            mvc.perform(MockMvcRequestBuilders.post(ruta))
-                    .andExpect(status().isUnauthorized());
-        }
-    }
-
-    @Test
     void unTokenVencidoEnUnaRutaPublicaNoLaBloquea() throws Exception {
-        String vencido = new JwtProvider(secret, -1000L).generateToken(USER_ID, List.of("CLIENT"));
-        mvc.perform(MockMvcRequestBuilders.post("/api/v1/auth/login")
+        String vencido = new JwtProvider(secret, -1000L).generateToken(USER_ID, List.of("CONTRATANTE"));
+        mvc.perform(MockMvcRequestBuilders.post("/api/auth/login")
                 .header("Authorization", "Bearer " + vencido))
                 .andExpect(result -> assertNotEquals(401, result.getResponse().getStatus()));
     }
@@ -240,7 +231,7 @@ class SecurityIntegrationTest {
     // --- cambio de contraseña: el id sale del token, no de la URL ---
     private UserDto crearUsuarioConCredencial(String clave) {
         UserDto usuario = localUserService.createProfile(
-                new NewUser("Prueba", UUID.randomUUID() + "@test.com", Set.of(Role.CLIENT)));
+                new NewUser("Prueba", UUID.randomUUID() + "@test.com", Set.of(Role.CONTRATANTE)));
         credentialService.create(usuario.id(), clave);
         return usuario;
     }
@@ -259,7 +250,7 @@ class SecurityIntegrationTest {
         String claveVictima = "Victima#Clave2026";
         UserDto atacante = crearUsuarioConCredencial(CLAVE);
         UserDto victima = crearUsuarioConCredencial(claveVictima);
-        String tokenAtacante = jwtProvider.generateToken(atacante.id(), List.of("CLIENT"));
+        String tokenAtacante = jwtProvider.generateToken(atacante.id(), List.of("CONTRATANTE"));
 
         mvc.perform(MockMvcRequestBuilders.put("/api/v1/auth/change")
                 .param("userId", String.valueOf(victima.id()))

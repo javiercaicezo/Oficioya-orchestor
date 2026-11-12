@@ -104,12 +104,12 @@ public class AuthOrchestrator {
      *
      * @param request The registration payload containing name, email, password, and requested roles.
      * @return The created {@link UserDto} profile.
-     * @throws ForbiddenRoleException if the registration attempts to request the restricted ADMINISTRATOR role.
+     * @throws ForbiddenRoleException if the registration attempts to request the restricted ADMIN role.
      * @throws DuplicateUserException if an account already exists with the specified email.
      * @throws eci.edu.dosw.identity.exception.WeakPasswordException if the password does not satisfy security policies.
      */
     public UserDto register(RegisterRequest request) {
-        if (request.roles() != null && request.roles().contains(Role.ADMINISTRATOR)) {
+        if (request.roles() != null && request.roles().contains(Role.ADMIN)) {
             throw new ForbiddenRoleException();
         }
         passwordPolicy.validate(request.password());

@@ -63,7 +63,7 @@ class AuthOrchestratorTest {
     }
 
     private UserDto usuario(boolean activo) {
-        return new UserDto(7L, "Ana", CORREO, Set.of(Role.WORKER, Role.CLIENT), activo);
+        return new UserDto(7L, "Ana", CORREO, Set.of(Role.TRABAJADOR, Role.CONTRATANTE), activo);
     }
 
     private RegisterRequest solicitudDeRegistro(Set<Role> roles) {
@@ -75,7 +75,7 @@ class AuthOrchestratorTest {
     @Test
     void loginExitosoDevuelveElTokenConIdYRoles() {
         when(userService.findByEmail(CORREO)).thenReturn(Optional.of(usuario(true)));
-        when(jwtProvider.generateToken(7L, List.of("CLIENT", "WORKER"))).thenReturn("token-abc");
+        when(jwtProvider.generateToken(7L, List.of("CONTRATANTE", "TRABAJADOR"))).thenReturn("token-abc");
         when(jwtProvider.getExpirationSeconds()).thenReturn(900L);
 
         LoginResponse respuesta = orchestrator.login(new LoginRequest(CORREO, CLAVE));
@@ -83,7 +83,7 @@ class AuthOrchestratorTest {
         assertEquals("token-abc", respuesta.token());
         assertEquals(900L, respuesta.expiresInSeconds());
         assertEquals(7L, respuesta.userId());
-        assertEquals(Set.of(Role.CLIENT, Role.WORKER), respuesta.roles());
+        assertEquals(Set.of(Role.CONTRATANTE, Role.TRABAJADOR), respuesta.roles());
         verify(credentialService).authenticate(7L, CLAVE);
     }
 
@@ -138,18 +138,18 @@ class AuthOrchestratorTest {
 
     @Test
     void registroExitosoCreaElPerfilYLaCredencial() {
-        UserDto creado = new UserDto(9L, "Ana", CORREO, Set.of(Role.CLIENT), true);
+        UserDto creado = new UserDto(9L, "Ana", CORREO, Set.of(Role.CONTRATANTE), true);
         when(userService.findByEmail(CORREO)).thenReturn(Optional.empty());
         when(userService.createProfile(any(NewUser.class))).thenReturn(creado);
 
-        UserDto resultado = orchestrator.register(solicitudDeRegistro(Set.of(Role.CLIENT)));
+        UserDto resultado = orchestrator.register(solicitudDeRegistro(Set.of(Role.CONTRATANTE)));
 
         assertEquals(creado, resultado);
         ArgumentCaptor<NewUser> captor = ArgumentCaptor.forClass(NewUser.class);
         verify(userService).createProfile(captor.capture());
         assertEquals("Ana", captor.getValue().name());
         assertEquals(CORREO, captor.getValue().email());
-        assertEquals(Set.of(Role.CLIENT), captor.getValue().roles());
+        assertEquals(Set.of(Role.CONTRATANTE), captor.getValue().roles());
         verify(passwordPolicy).validate(CLAVE);
         verify(credentialService).create(9L, CLAVE);
     }
@@ -157,7 +157,7 @@ class AuthOrchestratorTest {
     @Test
     void registroNoPermiteElRolAdministrador() {
         assertThrows(ForbiddenRoleException.class,
-                () -> orchestrator.register(solicitudDeRegistro(Set.of(Role.CLIENT, Role.ADMINISTRATOR))));
+                () -> orchestrator.register(solicitudDeRegistro(Set.of(Role.CONTRATANTE, Role.ADMIN))));
 
         verify(userService, never()).createProfile(any());
         verify(passwordPolicy, never()).validate(any());
@@ -168,7 +168,7 @@ class AuthOrchestratorTest {
         doThrow(new WeakPasswordException()).when(passwordPolicy).validate(CLAVE);
 
         assertThrows(WeakPasswordException.class,
-                () -> orchestrator.register(solicitudDeRegistro(Set.of(Role.CLIENT))));
+                () -> orchestrator.register(solicitudDeRegistro(Set.of(Role.CONTRATANTE))));
 
         verify(userService, never()).createProfile(any());
         verify(credentialService, never()).create(any(), any());
@@ -179,7 +179,7 @@ class AuthOrchestratorTest {
         when(userService.findByEmail(CORREO)).thenReturn(Optional.of(usuario(true)));
 
         assertThrows(DuplicateUserException.class,
-                () -> orchestrator.register(solicitudDeRegistro(Set.of(Role.CLIENT))));
+                () -> orchestrator.register(solicitudDeRegistro(Set.of(Role.CONTRATANTE))));
 
         verify(userService, never()).createProfile(any());
         verify(credentialService, never()).create(any(), any());
@@ -187,14 +187,14 @@ class AuthOrchestratorTest {
 
     @Test
     void siFallaLaCredencialSeBorraElPerfilCreado() {
-        UserDto creado = new UserDto(9L, "Ana", CORREO, Set.of(Role.CLIENT), true);
+        UserDto creado = new UserDto(9L, "Ana", CORREO, Set.of(Role.CONTRATANTE), true);
         when(userService.findByEmail(CORREO)).thenReturn(Optional.empty());
         when(userService.createProfile(any(NewUser.class))).thenReturn(creado);
         RuntimeException fallo = new RuntimeException("base de datos caida");
         doThrow(fallo).when(credentialService).create(9L, CLAVE);
 
         RuntimeException lanzada = assertThrows(RuntimeException.class,
-                () -> orchestrator.register(solicitudDeRegistro(Set.of(Role.CLIENT))));
+                () -> orchestrator.register(solicitudDeRegistro(Set.of(Role.CONTRATANTE))));
 
         assertEquals(fallo, lanzada);
         verify(userService).deleteProfile(9L);
@@ -202,14 +202,14 @@ class AuthOrchestratorTest {
 
     @Test
     void siTambienFallaElBorradoSeConservaElErrorOriginal() {
-        UserDto creado = new UserDto(9L, "Ana", CORREO, Set.of(Role.CLIENT), true);
+        UserDto creado = new UserDto(9L, "Ana", CORREO, Set.of(Role.CONTRATANTE), true);
         when(userService.findByEmail(CORREO)).thenReturn(Optional.empty());
         when(userService.createProfile(any(NewUser.class))).thenReturn(creado);
         doThrow(new RuntimeException("base de datos caida")).when(credentialService).create(9L, CLAVE);
         doThrow(new IllegalStateException("no se pudo borrar")).when(userService).deleteProfile(9L);
 
         RuntimeException lanzada = assertThrows(RuntimeException.class,
-                () -> orchestrator.register(solicitudDeRegistro(Set.of(Role.CLIENT))));
+                () -> orchestrator.register(solicitudDeRegistro(Set.of(Role.CONTRATANTE))));
 
         assertEquals("base de datos caida", lanzada.getMessage());
         assertEquals(1, lanzada.getSuppressed().length);

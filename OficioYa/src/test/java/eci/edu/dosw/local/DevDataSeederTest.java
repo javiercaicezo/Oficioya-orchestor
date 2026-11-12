@@ -44,8 +44,8 @@ class DevDataSeederTest {
         var cliente = orchestrator.login(new LoginRequest("carlos@oficioya.com", "Carlos2024!*"));
         var admin = orchestrator.login(new LoginRequest("admin@oficioya.com", "Admin2024!*Dev"));
 
-        assertTrue(cliente.roles().contains(Role.CLIENT));
-        assertTrue(admin.roles().contains(Role.ADMINISTRATOR));
+        assertTrue(cliente.roles().contains(Role.CONTRATANTE));
+        assertTrue(admin.roles().contains(Role.ADMIN));
     }
 
     @Test
@@ -54,7 +54,7 @@ class DevDataSeederTest {
 
         assertEquals(2, credentialRepository.count());
         assertTrue(orchestrator.login(new LoginRequest("admin@oficioya.com", "Admin2024!*Dev"))
-                .roles().contains(Role.ADMINISTRATOR));
+                .roles().contains(Role.ADMIN));
     }
 
     @Test
@@ -66,6 +66,6 @@ class DevDataSeederTest {
 
         assertEquals(2, credentialRepository.count());
         assertTrue(orchestrator.login(new LoginRequest("carlos@oficioya.com", "Carlos2024!*"))
-                .roles().contains(Role.CLIENT));
+                .roles().contains(Role.CONTRATANTE));
     }
 }
