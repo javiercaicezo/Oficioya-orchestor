@@ -1,5 +1,6 @@
 package eci.edu.dosw.security;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.cors.CorsConfiguration;
@@ -9,21 +10,35 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import java.util.List;
 
 /**
- * Configuración de CORS para desarrollo local.
- * Permite que el front (Vite en localhost:5173) llame al back (puerto 8080).
+ * Cross-Origin Resource Sharing (CORS) configuration for the application.
+ * Enables the frontend application (e.g., Vite dev server on localhost:5173 and preview on localhost:4173)
+ * to interact with the backend API running on port 8080.
  */
 @Configuration
 public class CorsConfig {
 
-    @Bean
+    @Value("${cors.allowed-origins:http://localhost:5173,http://localhost:4173}")
+    private List<String> allowedOrigins;
+
+    /**
+     * Configures and registers global CORS policies for all incoming HTTP request paths.
+   
+     * Settings include:
+
+     * Allowed Origins: Local frontend clients ({@code http://localhost:5173}, {@code http://localhost:4173}).
+     * Allowed HTTP Methods: {@code GET}, {@code POST}, {@code PUT}, {@code PATCH}, {@code DELETE}, {@code OPTIONS}.
+     * Allowed Headers: Wildcard ({@code *}) to accept standard and custom authorization headers.</li>
+     * Credentials: Enabled ({@code true}) to allow cookies and {@code Authorization} headers in cross-origin requests.
+     * Max Age: 3600 seconds (1 hour) pre-flight cache duration.
+     * 
+     *
+     * @return A configured {@link CorsConfigurationSource} applied to all routes ({@code /**}).
+     */
+     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
 
-        // Orígenes permitidos: front en Vite (dev) y preview
-        config.setAllowedOrigins(List.of(
-                "http://localhost:5173",
-                "http://localhost:4173"
-        ));
+        config.setAllowedOrigins(allowedOrigins);
 
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
 
