@@ -136,7 +136,7 @@ class AuthControllerTest {
     class RegisterTests {
 
         @Test
-        @DisplayName("200 OK al registrar exitosamente")
+        @DisplayName("201 OK al registrar exitosamente")
         void registerExitoso() throws Exception {
             UserDto nuevo = new UserDto(1L, "Carlos", "carlos@x.com", Set.of(Role.CLIENT), true);
             when(authOrchestrator.register(any(RegisterRequest.class))).thenReturn(nuevo);
@@ -151,7 +151,7 @@ class AuthControllerTest {
                                       "roles": ["CLIENT"]
                                     }
                                     """))
-                    .andExpect(status().isOk())
+                    .andExpect(status().isCreated())
                     .andExpect(jsonPath("$.id", is(1)))
                     .andExpect(jsonPath("$.email", is("carlos@x.com")));
         }
