@@ -37,8 +37,8 @@ public class SecurityConfig {
                     "/api/v1/auth/forgot", "/api/v1/auth/reset").permitAll()
                 .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/swagger-resources/**").permitAll()
                 .requestMatchers("/error").permitAll()
-                .requestMatchers("/api/admin/**").hasRole("ADMINISTRATOR")
-                .requestMatchers("/api/worker/**").hasRole("WORKER")
+                .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                .requestMatchers("/api/worker/**").hasRole("TRABAJADOR")
                 .anyRequest().authenticated())
             .addFilterBefore(new JwtAuthenticationFilter(jwtProvider, credentialService),
                 UsernamePasswordAuthenticationFilter.class);

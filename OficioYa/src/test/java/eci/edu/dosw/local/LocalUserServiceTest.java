@@ -18,7 +18,7 @@ class LocalUserServiceTest {
     private final LocalUserService service = new LocalUserService();
 
     private NewUser nuevo(String email) {
-        return new NewUser("Ana", email, Set.of(Role.CLIENT));
+        return new NewUser("Ana", email, Set.of(Role.CONTRATANTE));
     }
 
     @Test

@@ -19,7 +19,7 @@ import java.util.Set;
  * Solo activo con el perfil "local" (nunca en producción).
  *
  * Crea el perfil y la credencial directamente (sin pasar por el orquestador) porque
- * el registro público rechaza el rol ADMINISTRATOR. Los usuarios viven en memoria y sus
+ * el registro público rechaza el rol ADMIN. Los usuarios viven en memoria y sus
  * ids reinician en cada arranque, pero las credenciales quedan en la base de datos:
  * por eso se borran antes de sembrar, para que no choquen con los ids nuevos.
  */
@@ -46,8 +46,8 @@ public class DevDataSeeder implements ApplicationRunner {
         log.warn("DevDataSeeder: credenciales anteriores eliminadas (perfil local, usuarios en memoria).");
 
         int cargados = 0;
-        cargados += seedUser("Carlos López", "carlos@oficioya.com", "Carlos2024!*", Set.of(Role.CLIENT));
-        cargados += seedUser("Admin OficioYa", "admin@oficioya.com", "Admin2024!*Dev", Set.of(Role.ADMINISTRATOR));
+        cargados += seedUser("Carlos López", "carlos@oficioya.com", "Carlos2024!*", Set.of(Role.CONTRATANTE));
+        cargados += seedUser("Admin OficioYa", "admin@oficioya.com", "Admin2024!*Dev", Set.of(Role.ADMIN));
         log.info("DevDataSeeder: {} usuarios de prueba cargados.", cargados);
     }
 

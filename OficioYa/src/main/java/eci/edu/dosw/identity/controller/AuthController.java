@@ -63,7 +63,7 @@ public class AuthController {
         @ApiResponse(responseCode = "201", description = "Usuario registrado exitosamente"),
         @ApiResponse(responseCode = "400", description = "Contraseña débil según política de seguridad",
                      content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
-        @ApiResponse(responseCode = "403", description = "Rol prohibido para autorregistro (ej. ADMINISTRATOR)",
+        @ApiResponse(responseCode = "403", description = "Rol prohibido para autorregistro (ej. ADMIN)",
                      content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
         @ApiResponse(responseCode = "409", description = "Correo electrónico ya registrado",
                      content = @Content(schema = @Schema(implementation = ErrorResponse.class)))

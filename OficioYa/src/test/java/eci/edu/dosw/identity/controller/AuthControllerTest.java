@@ -64,7 +64,7 @@ class AuthControllerTest {
         @DisplayName("200 OK cuando las credenciales son correctas")
         void loginExitoso() throws Exception {
             when(authOrchestrator.login(any(LoginRequest.class)))
-                    .thenReturn(new LoginResponse("jwt-token-valido", 900, 1L, Set.of(Role.CLIENT)));
+                    .thenReturn(new LoginResponse("jwt-token-valido", 900, 1L, Set.of(Role.CONTRATANTE)));
 
             mockMvc.perform(post("/api/v1/auth/login")
                             .contentType(MediaType.APPLICATION_JSON)
@@ -138,7 +138,7 @@ class AuthControllerTest {
         @Test
         @DisplayName("201 OK al registrar exitosamente")
         void registerExitoso() throws Exception {
-            UserDto nuevo = new UserDto(1L, "Carlos", "carlos@x.com", Set.of(Role.CLIENT), true);
+            UserDto nuevo = new UserDto(1L, "Carlos", "carlos@x.com", Set.of(Role.CONTRATANTE), true);
             when(authOrchestrator.register(any(RegisterRequest.class))).thenReturn(nuevo);
 
             mockMvc.perform(post("/api/v1/auth/register")
@@ -148,7 +148,7 @@ class AuthControllerTest {
                                       "name": "Carlos",
                                       "email": "carlos@x.com",
                                       "password": "Password123#",
-                                      "roles": ["CLIENT"]
+                                      "roles": ["CONTRATANTE"]
                                     }
                                     """))
                     .andExpect(status().isCreated())
@@ -157,7 +157,7 @@ class AuthControllerTest {
         }
 
         @Test
-        @DisplayName("403 FORBIDDEN si intenta registrarse con rol ADMINISTRATOR")
+        @DisplayName("403 FORBIDDEN si intenta registrarse con rol ADMIN")
         void registerRolProhibido() throws Exception {
             when(authOrchestrator.register(any(RegisterRequest.class)))
                     .thenThrow(new ForbiddenRoleException());
@@ -169,11 +169,11 @@ class AuthControllerTest {
                                       "name": "Carlos",
                                       "email": "carlos@x.com",
                                       "password": "Password123#",
-                                      "roles": ["ADMINISTRATOR"]
+                                      "roles": ["ADMIN"]
                                     }
                                     """))
                     .andExpect(status().isForbidden())
-                    .andExpect(jsonPath("$.message", containsString("ADMINISTRATOR")));
+                    .andExpect(jsonPath("$.message", containsString("ADMIN")));
         }
 
         @Test
@@ -189,7 +189,7 @@ class AuthControllerTest {
                                       "name": "Carlos",
                                       "email": "duplicado@x.com",
                                       "password": "Password123#",
-                                      "roles": ["CLIENT"]
+                                      "roles": ["CONTRATANTE"]
                                     }
                                     """))
                     .andExpect(status().isConflict())
@@ -209,7 +209,7 @@ class AuthControllerTest {
                                       "name": "Carlos",
                                       "email": "carlos@x.com",
                                       "password": "123",
-                                      "roles": ["CLIENT"]
+                                      "roles": ["CONTRATANTE"]
                                     }
                                     """))
                     .andExpect(status().isBadRequest())
