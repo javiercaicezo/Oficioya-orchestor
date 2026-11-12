@@ -9,6 +9,7 @@ import java.util.Base64;
 import java.util.List;
 import java.util.UUID;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -65,7 +66,8 @@ class JwtProviderTest {
 
         assertTrue(provider.isValid(token));
         assertEquals(List.of("SERVICE"), provider.getRolesFromToken(token));
-        assertEquals("orchestrator-service", provider.parse(token).getSubject());
+        assertEquals(JwtProvider.SERVICE_SUBJECT, provider.parse(token).getSubject());
+        assertDoesNotThrow(() -> UUID.fromString(provider.parse(token).getSubject()));
     }
 
     @Test

@@ -29,6 +29,6 @@ public record UserDto(
     }
 
     private static boolean isStatusActive(String status) {
-        return status != null && (status.equalsIgnoreCase("ACTIVE") || status.equalsIgnoreCase("ACTIVO"));
+        return status != null && status.equalsIgnoreCase("ACTIVE");
     }
 }

@@ -20,6 +20,8 @@ import java.util.UUID;
 @Component
 public class JwtProvider {
 
+    public static final String SERVICE_SUBJECT = "00000000-0000-0000-0000-000000000001";
+
     private final SecretKey key;
     private final long expirationMs;
 
@@ -60,7 +62,7 @@ public class JwtProvider {
      * inter-servicio.
      */
     public String generateServiceToken() {
-        return generateToken("orchestrator-service", List.of("SERVICE"));
+        return generateToken(SERVICE_SUBJECT, List.of("SERVICE"));
     }
 
     /**

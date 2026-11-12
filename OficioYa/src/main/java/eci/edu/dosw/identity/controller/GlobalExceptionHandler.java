@@ -8,6 +8,7 @@ import eci.edu.dosw.identity.exception.InvalidCredentialsException;
 import eci.edu.dosw.identity.exception.InvalidOtpException;
 import eci.edu.dosw.identity.exception.OtpRateLimitException;
 import eci.edu.dosw.identity.exception.UserNotFoundException;
+import eci.edu.dosw.identity.exception.UsersServiceUnavailableException;
 import eci.edu.dosw.identity.exception.WeakPasswordException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -91,6 +92,13 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ErrorResponse> handleIllegalArgument(IllegalArgumentException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(new ErrorResponse(ex.getMessage()));
+    }
+
+    @ExceptionHandler(UsersServiceUnavailableException.class)
+    public ResponseEntity<ErrorResponse> handleUsersServiceUnavailable(UsersServiceUnavailableException ex) {
+        log.error("Microservicio de usuarios no disponible: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
                 .body(new ErrorResponse(ex.getMessage()));
     }
 
