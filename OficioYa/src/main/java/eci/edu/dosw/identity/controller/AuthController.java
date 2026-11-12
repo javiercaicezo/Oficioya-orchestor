@@ -33,6 +33,8 @@ import org.springframework.web.bind.annotation.RestController;
  * Responsible for payload validation, security context extraction, and fulfilling
  * requirements RF-01 to RF-05 and RNF-06.
  */
+import java.util.UUID;
+
 @Tag(name = "Autenticación", description = "Operaciones de autenticación, registro y gestión de credenciales (RF-01 a RF-05, RNF-06)")
 @RestController
 @RequestMapping("/api/v1/auth")
@@ -84,9 +86,9 @@ public class AuthController {
                      content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
     @PutMapping("/change")
-
     public void changePassword(Authentication authentication, @Valid @RequestBody ChangePasswordRequest request) {
-        Long userId = (Long) authentication.getPrincipal();
+        Object principal = authentication.getPrincipal();
+        UUID userId = principal instanceof UUID uuid ? uuid : UUID.fromString(String.valueOf(principal));
         authOrchestrator.changePassword(userId, request);
     }
 

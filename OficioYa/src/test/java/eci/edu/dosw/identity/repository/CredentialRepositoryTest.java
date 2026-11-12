@@ -9,6 +9,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -30,19 +31,21 @@ class CredentialRepositoryTest {
 
     @Test
     void guardaYBuscaPorUserId() {
-        credentialRepository.save(new Credential(1L, "hash-1", NOW));
+        UUID u1 = UUID.randomUUID();
+        credentialRepository.save(new Credential(u1, "hash-1", NOW));
 
-        Credential encontrada = credentialRepository.findByUserId(1L).orElseThrow();
+        Credential encontrada = credentialRepository.findByUserId(u1).orElseThrow();
 
         assertNotNull(encontrada.getId());
-        assertEquals(1L, encontrada.getUserId());
+        assertEquals(u1, encontrada.getUserId());
         assertEquals("hash-1", encontrada.getPasswordHash());
         assertEquals(NOW, encontrada.getPasswordChangedAt());
     }
 
     @Test
     void usaValoresPorDefectoParaIntentosYBloqueo() {
-        Credential guardada = credentialRepository.saveAndFlush(new Credential(2L, "hash-2", NOW));
+        UUID u2 = UUID.randomUUID();
+        Credential guardada = credentialRepository.saveAndFlush(new Credential(u2, "hash-2", NOW));
 
         assertEquals(0, guardada.getFailedAttempts());
         assertNull(guardada.getLockedUntil());
@@ -51,38 +54,42 @@ class CredentialRepositoryTest {
 
     @Test
     void userIdDebeSerUnico() {
-        credentialRepository.saveAndFlush(new Credential(3L, "hash-a", NOW));
+        UUID u3 = UUID.randomUUID();
+        credentialRepository.saveAndFlush(new Credential(u3, "hash-a", NOW));
 
         assertThrows(DataIntegrityViolationException.class,
-                () -> credentialRepository.saveAndFlush(new Credential(3L, "hash-b", NOW)));
+                () -> credentialRepository.saveAndFlush(new Credential(u3, "hash-b", NOW)));
     }
 
     @Test
     void existsByUserIdIndicaSiHayCredencial() {
-        credentialRepository.save(new Credential(4L, "hash-4", NOW));
+        UUID u4 = UUID.randomUUID();
+        credentialRepository.save(new Credential(u4, "hash-4", NOW));
 
-        assertTrue(credentialRepository.existsByUserId(4L));
-        assertFalse(credentialRepository.existsByUserId(404L));
+        assertTrue(credentialRepository.existsByUserId(u4));
+        assertFalse(credentialRepository.existsByUserId(UUID.randomUUID()));
     }
 
     @Test
     void deleteByUserIdBorraLaCredencial() {
-        credentialRepository.save(new Credential(5L, "hash-5", NOW));
+        UUID u5 = UUID.randomUUID();
+        credentialRepository.save(new Credential(u5, "hash-5", NOW));
 
-        long borradas = credentialRepository.deleteByUserId(5L);
+        long borradas = credentialRepository.deleteByUserId(u5);
 
         assertEquals(1, borradas);
-        assertFalse(credentialRepository.existsByUserId(5L));
+        assertFalse(credentialRepository.existsByUserId(u5));
     }
 
     @Test
     void actualizaIntentosFallidosYBloqueo() {
-        Credential credencial = credentialRepository.save(new Credential(6L, "hash-6", NOW));
+        UUID u6 = UUID.randomUUID();
+        Credential credencial = credentialRepository.save(new Credential(u6, "hash-6", NOW));
         credencial.setFailedAttempts(3);
         credencial.setLockedUntil(NOW.plusMinutes(15));
         credentialRepository.saveAndFlush(credencial);
 
-        Credential recargada = credentialRepository.findByUserId(6L).orElseThrow();
+        Credential recargada = credentialRepository.findByUserId(u6).orElseThrow();
 
         assertEquals(3, recargada.getFailedAttempts());
         assertEquals(NOW.plusMinutes(15), recargada.getLockedUntil());

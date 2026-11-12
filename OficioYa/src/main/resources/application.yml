@@ -17,7 +17,11 @@ spring:
     locations: classpath:db/migration
 
 server:
-  port: 8080
+  port: ${PORT:8081}
+
+users:
+  service:
+    url: ${USERS_SERVICE_URL:http://localhost:8080}
 
 logging:
   pattern:

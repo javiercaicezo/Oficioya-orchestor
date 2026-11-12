@@ -7,6 +7,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.List;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -25,32 +26,51 @@ class JwtProviderTest {
     private static final String SECRETO_A = secreto("0123456789abcdef0123456789abcdef");
     private static final String SECRETO_B = secreto("fedcba9876543210fedcba9876543210");
 
+    private static final UUID USER_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
+    private static final UUID USER_ID_42 = UUID.fromString("00000000-0000-0000-0000-000000000042");
+
     private final JwtProvider provider = new JwtProvider(SECRETO_A, QUINCE_MINUTOS_MS);
 
     @Test
     void generaUnTokenValido() {
-        String token = provider.generateToken(7L, List.of("CONTRATANTE"));
+        String token = provider.generateToken(USER_ID, List.of("CONTRATANTE"));
 
         assertTrue(provider.isValid(token));
     }
 
     @Test
     void elTokenContieneElIdDelUsuario() {
-        String token = provider.generateToken(42L, List.of("CONTRATANTE"));
+        String token = provider.generateToken(USER_ID_42, List.of("CONTRATANTE"));
 
-        assertEquals(42L, provider.getUserIdFromToken(token));
+        assertEquals(USER_ID_42, provider.getUserIdFromToken(token));
     }
 
     @Test
     void elTokenContieneTodosLosRoles() {
-        String token = provider.generateToken(1L, List.of("CONTRATANTE", "TRABAJADOR"));
+        String token = provider.generateToken(USER_ID, List.of("CONTRATANTE", "TRABAJADOR"));
 
         assertEquals(List.of("CONTRATANTE", "TRABAJADOR"), provider.getRolesFromToken(token));
     }
 
     @Test
+    void elTokenFiltraElRolServiceEnTokensDeUsuario() {
+        String token = provider.generateToken(USER_ID, List.of("CONTRATANTE", "SERVICE"));
+
+        assertEquals(List.of("CONTRATANTE"), provider.getRolesFromToken(token));
+    }
+
+    @Test
+    void generaTokenDeServicio() {
+        String token = provider.generateServiceToken();
+
+        assertTrue(provider.isValid(token));
+        assertEquals(List.of("SERVICE"), provider.getRolesFromToken(token));
+        assertEquals("orchestrator-service", provider.parse(token).getSubject());
+    }
+
+    @Test
     void aceptaUnaListaDeRolesVacia() {
-        String token = provider.generateToken(1L, List.of());
+        String token = provider.generateToken(USER_ID, List.of());
 
         assertTrue(provider.getRolesFromToken(token).isEmpty());
     }
@@ -59,7 +79,7 @@ class JwtProviderTest {
     void guardaLaFechaDeEmisionReciente() {
         Instant antes = Instant.now().minusSeconds(2);
 
-        String token = provider.generateToken(1L, List.of("CONTRATANTE"));
+        String token = provider.generateToken(USER_ID, List.of("CONTRATANTE"));
         Instant emitido = provider.getIssuedAtFromToken(token);
 
         assertTrue(emitido.isAfter(antes));
@@ -73,7 +93,7 @@ class JwtProviderTest {
 
     @Test
     void elTokenExpiraDespuesDeLaVigenciaConfigurada() {
-        String token = provider.generateToken(1L, List.of("CONTRATANTE"));
+        String token = provider.generateToken(USER_ID, List.of("CONTRATANTE"));
 
         Instant emitido = provider.getIssuedAtFromToken(token);
         Instant expira = provider.parse(token).getExpiration().toInstant();
@@ -84,7 +104,7 @@ class JwtProviderTest {
     @Test
     void rechazaUnTokenVencido() {
         JwtProvider caducado = new JwtProvider(SECRETO_A, -1000L);
-        String token = caducado.generateToken(1L, List.of("CONTRATANTE"));
+        String token = caducado.generateToken(USER_ID, List.of("CONTRATANTE"));
 
         assertFalse(caducado.isValid(token));
         assertThrows(ExpiredJwtException.class, () -> caducado.parse(token));
@@ -93,7 +113,7 @@ class JwtProviderTest {
     @Test
     void rechazaUnTokenFirmadoConOtraClave() {
         JwtProvider ajeno = new JwtProvider(SECRETO_B, QUINCE_MINUTOS_MS);
-        String tokenAjeno = ajeno.generateToken(1L, List.of("ADMIN"));
+        String tokenAjeno = ajeno.generateToken(USER_ID, List.of("ADMIN"));
 
         assertFalse(provider.isValid(tokenAjeno));
     }

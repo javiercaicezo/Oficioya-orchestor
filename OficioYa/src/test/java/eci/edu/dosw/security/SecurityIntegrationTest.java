@@ -20,6 +20,7 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 
 import eci.edu.dosw.local.LocalUserService;
+import eci.edu.dosw.orchestrator.dto.PhoneDTO;
 import eci.edu.dosw.user.NewUser;
 import eci.edu.dosw.user.Role;
 import eci.edu.dosw.user.UserDto;
@@ -47,7 +48,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ActiveProfiles("test")
 class SecurityIntegrationTest {
 
-    private static final Long USER_ID = 1L;
+    private static final UUID USER_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
     private static final String CLAVE = "Segura#Clave2026";
 
     @Autowired
@@ -94,7 +95,8 @@ class SecurityIntegrationTest {
     // --- token válido ---
     @Test
     void unTokenValidoPasaYElControladorVeElIdDelToken() throws Exception {
-        get("/api/probe", token("CONTRATANTE")).andExpect(status().isOk()).andExpect(content().string("1"));
+        get("/api/probe", token("CONTRATANTE")).andExpect(status().isOk())
+                .andExpect(content().string(USER_ID.toString()));
     }
 
     // --- sin token / inválido ---
@@ -153,11 +155,15 @@ class SecurityIntegrationTest {
     void elRolCorrectoAccedeALaRutaDeRol() throws Exception {
         get("/api/admin/probe", token("ADMIN")).andExpect(status().isOk());
         get("/api/worker/probe", token("TRABAJADOR")).andExpect(status().isOk());
+        get("/api/v1/admin/probe", token("ADMIN")).andExpect(status().isOk());
+        get("/api/v1/worker/probe", token("TRABAJADOR")).andExpect(status().isOk());
     }
 
     @Test
     void unRolInsuficienteRecibe403() throws Exception {
         get("/api/admin/probe", token("CONTRATANTE")).andExpect(status().isForbidden());
+        get("/api/v1/admin/probe", token("CONTRATANTE")).andExpect(status().isForbidden());
+        get("/api/v1/worker/probe", token("CONTRATANTE")).andExpect(status().isForbidden());
     }
 
     @Test
@@ -240,8 +246,9 @@ class SecurityIntegrationTest {
     // --- cambio de contraseña: el id sale del token, no de la URL ---
     private UserDto crearUsuarioConCredencial(String clave) {
         UserDto usuario = localUserService.createProfile(
-                new NewUser("Prueba", UUID.randomUUID() + "@test.com", Set.of(Role.CONTRATANTE)));
-        credentialService.create(usuario.id(), clave);
+                new NewUser("Prueba", UUID.randomUUID() + "@test.com",
+                        List.of(new PhoneDTO("+573001234567", true)), List.of("CONTRATANTE")));
+        credentialService.create(usuario.id(), usuario.email(), clave);
         return usuario;
     }
 

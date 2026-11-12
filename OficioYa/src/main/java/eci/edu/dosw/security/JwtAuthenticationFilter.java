@@ -58,12 +58,21 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             if (emitido == null) {
                 return;
             }
-            Long userId = Long.valueOf(claims.getSubject());
-            if (credentialService.wasIssuedBeforePasswordChange(userId, emitido.toInstant())) {
+            String subject = claims.getSubject();
+            if (subject == null) {
+                return;
+            }
+            java.util.UUID userId = null;
+            try {
+                userId = java.util.UUID.fromString(subject);
+            } catch (IllegalArgumentException ignored) {
+            }
+
+            if (userId != null && credentialService.wasIssuedBeforePasswordChange(userId, emitido.toInstant())) {
                 return;
             }
             SecurityContextHolder.getContext().setAuthentication(
-                    new UsernamePasswordAuthenticationToken(userId, null, autoridades(claims)));
+                    new UsernamePasswordAuthenticationToken(subject, null, autoridades(claims)));
         } catch (JwtException | IllegalArgumentException e) {
             log.debug("Token rechazado: {}", e.getClass().getSimpleName());
         }

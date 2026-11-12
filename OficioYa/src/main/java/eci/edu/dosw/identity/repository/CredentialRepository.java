@@ -3,22 +3,23 @@ package eci.edu.dosw.identity.repository;
 import eci.edu.dosw.identity.model.Credential;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.Optional;
+import java.util.UUID;
+
 /**
  * Spring Data JPA Repository for the {@link Credential} entity.
  * Provides abstracted database access and auto-generated SQL queries.
- * 
- * Includes custom derived queries to locate credentials via the logical 
- * {@code userId} and compensation methods to support distributed transaction 
- * rollbacks during the user registration workflow.
  */
-import java.util.Optional;
+public interface CredentialRepository extends JpaRepository<Credential, UUID> {
 
-public interface CredentialRepository extends JpaRepository<Credential, Long> {
+    Optional<Credential> findByUserId(UUID userId);
 
-    Optional<Credential> findByUserId(Long userId);
+    Optional<Credential> findByEmail(String email);
 
-    boolean existsByUserId(Long userId);
+    boolean existsByUserId(UUID userId);
 
-    /** Devuelve cuantas filas borro (0 o 1). Se usa como compensacion si falla un registro. */
-    long deleteByUserId(Long userId);
+    boolean existsByEmail(String email);
+
+    /** Devuelve cuántas filas borró (0 o 1). Se usa como compensación si falla un registro. */
+    long deleteByUserId(UUID userId);
 }

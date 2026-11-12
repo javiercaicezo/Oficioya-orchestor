@@ -10,6 +10,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 /**
  * JPA Entity representing the lifecycle and state of a One-Time Password (OTP).
@@ -18,7 +19,7 @@ import java.time.LocalDateTime;
  * Stores only the cryptographic hash of the OTP ({@code codeHash}), never plain text.
  * Prevents replay attacks via the {@code used} flag.
  * Mitigates brute-force attacks by tracking validation {@code attempts}.
- *  enforces strict time-to-live using {@code createdAt} and {@code expiresAt}. 
+ * Enforces strict time-to-live using {@code createdAt} and {@code expiresAt}. 
  * 
  * Like the Credential entity, {@code userId} acts as a logical reference 
  * rather than a physical foreign key constraint.
@@ -32,7 +33,7 @@ public class Otp {
     private Long id;
 
     @Column(name = "user_id", nullable = false)
-    private Long userId;
+    private UUID userId;
 
     @Column(name = "code_hash", nullable = false)
     private String codeHash;
@@ -57,7 +58,7 @@ public class Otp {
         // requerido por JPA
     }
 
-    public Otp(Long userId, String codeHash, OtpPurpose purpose,
+    public Otp(UUID userId, String codeHash, OtpPurpose purpose,
                LocalDateTime createdAt, LocalDateTime expiresAt) {
         this.userId = userId;
         this.codeHash = codeHash;
@@ -70,7 +71,7 @@ public class Otp {
         return id;
     }
 
-    public Long getUserId() {
+    public UUID getUserId() {
         return userId;
     }
 

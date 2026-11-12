@@ -19,6 +19,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -34,6 +35,10 @@ import static org.mockito.Mockito.when;
 
 /** Prueba unitaria pura: el repositorio es un mock y el reloj esta fijo. */
 class CredentialServiceTest {
+
+    private static final UUID USER_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
+    private static final UUID USER_ID_2 = UUID.fromString("00000000-0000-0000-0000-000000000002");
+    private static final UUID OTHER_ID = UUID.fromString("00000000-0000-0000-0000-000000000099");
 
     private static final LocalDateTime NOW = LocalDateTime.of(2026, 11, 4, 12, 0);
     private static final ZoneId ZONA = ZoneId.systemDefault();
@@ -54,7 +59,7 @@ class CredentialServiceTest {
         service = new CredentialService(repository, ENCODER, new PasswordPolicyService(ENCODER), reloj);
     }
 
-    private Credential credencial(Long userId) {
+    private Credential credencial(UUID userId) {
         Credential c = new Credential(userId, HASH, NOW.minusDays(1));
         when(repository.findByUserId(userId)).thenReturn(Optional.of(c));
         return c;
@@ -64,14 +69,14 @@ class CredentialServiceTest {
 
     @Test
     void createGuardaLaContrasenaCifrada() {
-        when(repository.existsByUserId(1L)).thenReturn(false);
+        when(repository.existsByUserId(USER_ID)).thenReturn(false);
 
-        service.create(1L, VALIDA);
+        service.create(USER_ID, VALIDA);
 
         ArgumentCaptor<Credential> captor = ArgumentCaptor.forClass(Credential.class);
         verify(repository).save(captor.capture());
         Credential guardada = captor.getValue();
-        assertEquals(1L, guardada.getUserId());
+        assertEquals(USER_ID, guardada.getUserId());
         assertNotEquals(VALIDA, guardada.getPasswordHash());
         assertTrue(ENCODER.matches(VALIDA, guardada.getPasswordHash()));
         assertEquals(NOW, guardada.getPasswordChangedAt());
@@ -79,16 +84,16 @@ class CredentialServiceTest {
 
     @Test
     void createRechazaUnaContrasenaDebil() {
-        assertThrows(WeakPasswordException.class, () -> service.create(1L, "debil"));
+        assertThrows(WeakPasswordException.class, () -> service.create(USER_ID, "debil"));
 
         verify(repository, never()).save(any());
     }
 
     @Test
     void createRechazaUnUsuarioQueYaTieneCredencial() {
-        when(repository.existsByUserId(1L)).thenReturn(true);
+        when(repository.existsByUserId(USER_ID)).thenReturn(true);
 
-        assertThrows(DuplicateUserException.class, () -> service.create(1L, VALIDA));
+        assertThrows(DuplicateUserException.class, () -> service.create(USER_ID, VALIDA));
 
         verify(repository, never()).save(any());
     }
@@ -97,10 +102,10 @@ class CredentialServiceTest {
 
     @Test
     void authenticateExitosoReiniciaIntentosYRegistraElLogin() {
-        Credential c = credencial(1L);
+        Credential c = credencial(USER_ID);
         c.setFailedAttempts(2);
 
-        Credential resultado = service.authenticate(1L, VALIDA);
+        Credential resultado = service.authenticate(USER_ID, VALIDA);
 
         assertEquals(0, resultado.getFailedAttempts());
         assertNull(resultado.getLockedUntil());
@@ -109,22 +114,22 @@ class CredentialServiceTest {
 
     @Test
     void usuarioInexistenteYContrasenaIncorrectaDanElMismoMensaje() {
-        when(repository.findByUserId(99L)).thenReturn(Optional.empty());
-        credencial(1L);
+        when(repository.findByUserId(OTHER_ID)).thenReturn(Optional.empty());
+        credencial(USER_ID);
 
         String sinUsuario = assertThrows(InvalidCredentialsException.class,
-                () -> service.authenticate(99L, VALIDA)).getMessage();
+                () -> service.authenticate(OTHER_ID, VALIDA)).getMessage();
         String malaClave = assertThrows(InvalidCredentialsException.class,
-                () -> service.authenticate(1L, "Incorrecta#2026x")).getMessage();
+                () -> service.authenticate(USER_ID, "Incorrecta#2026x")).getMessage();
 
         assertEquals(sinUsuario, malaClave);
     }
 
     @Test
     void unaContrasenaIncorrectaSumaUnIntento() {
-        Credential c = credencial(1L);
+        Credential c = credencial(USER_ID);
 
-        assertThrows(InvalidCredentialsException.class, () -> service.authenticate(1L, "Incorrecta#2026x"));
+        assertThrows(InvalidCredentialsException.class, () -> service.authenticate(USER_ID, "Incorrecta#2026x"));
 
         assertEquals(1, c.getFailedAttempts());
         assertNull(c.getLockedUntil());
@@ -133,19 +138,19 @@ class CredentialServiceTest {
 
     @Test
     void laContrasenaNulaCuentaComoIntentoFallido() {
-        Credential c = credencial(1L);
+        Credential c = credencial(USER_ID);
 
-        assertThrows(InvalidCredentialsException.class, () -> service.authenticate(1L, null));
+        assertThrows(InvalidCredentialsException.class, () -> service.authenticate(USER_ID, null));
 
         assertEquals(1, c.getFailedAttempts());
     }
 
     @Test
     void elTercerIntentoFallidoBloqueaLaCuentaQuinceMinutos() {
-        Credential c = credencial(1L);
+        Credential c = credencial(USER_ID);
         c.setFailedAttempts(2);
 
-        assertThrows(InvalidCredentialsException.class, () -> service.authenticate(1L, "Incorrecta#2026x"));
+        assertThrows(InvalidCredentialsException.class, () -> service.authenticate(USER_ID, "Incorrecta#2026x"));
 
         assertEquals(NOW.plusMinutes(15), c.getLockedUntil());
         assertEquals(0, c.getFailedAttempts());
@@ -153,20 +158,20 @@ class CredentialServiceTest {
 
     @Test
     void unaCuentaBloqueadaSeRechazaAunConLaContrasenaCorrecta() {
-        Credential c = credencial(1L);
+        Credential c = credencial(USER_ID);
         c.setLockedUntil(NOW.plusMinutes(5));
 
-        assertThrows(AccountLockedException.class, () -> service.authenticate(1L, VALIDA));
+        assertThrows(AccountLockedException.class, () -> service.authenticate(USER_ID, VALIDA));
 
         verify(repository, never()).save(any());
     }
 
     @Test
     void cuandoElBloqueoVenceSePuedeIniciarSesion() {
-        Credential c = credencial(1L);
+        Credential c = credencial(USER_ID);
         c.setLockedUntil(NOW.minusMinutes(1));
 
-        Credential resultado = service.authenticate(1L, VALIDA);
+        Credential resultado = service.authenticate(USER_ID, VALIDA);
 
         assertNull(resultado.getLockedUntil());
         assertEquals(NOW, resultado.getLastLogin());
@@ -176,10 +181,10 @@ class CredentialServiceTest {
 
     @Test
     void changePasswordGuardaLaNuevaContrasenaCifrada() {
-        Credential c = credencial(1L);
+        Credential c = credencial(USER_ID);
         c.setFailedAttempts(2);
 
-        service.changePassword(1L, VALIDA, NUEVA);
+        service.changePassword(USER_ID, VALIDA, NUEVA);
 
         assertTrue(ENCODER.matches(NUEVA, c.getPasswordHash()));
         assertFalse(ENCODER.matches(VALIDA, c.getPasswordHash()));
@@ -189,48 +194,48 @@ class CredentialServiceTest {
 
     @Test
     void changePasswordRechazaSiLaActualEsIncorrecta() {
-        Credential c = credencial(1L);
+        Credential c = credencial(USER_ID);
 
         assertThrows(InvalidCredentialsException.class,
-                () -> service.changePassword(1L, "Incorrecta#2026x", NUEVA));
+                () -> service.changePassword(USER_ID, "Incorrecta#2026x", NUEVA));
 
         assertEquals(HASH, c.getPasswordHash());
     }
 
     @Test
     void changePasswordRechazaUnaNuevaIgualALaActual() {
-        credencial(1L);
+        credencial(USER_ID);
 
         WeakPasswordException e = assertThrows(WeakPasswordException.class,
-                () -> service.changePassword(1L, VALIDA, VALIDA));
+                () -> service.changePassword(USER_ID, VALIDA, VALIDA));
 
         assertTrue(e.getMessage().contains("diferente"));
     }
 
     @Test
     void changePasswordRechazaUnaNuevaDebil() {
-        credencial(1L);
+        credencial(USER_ID);
 
-        assertThrows(WeakPasswordException.class, () -> service.changePassword(1L, VALIDA, "debil"));
+        assertThrows(WeakPasswordException.class, () -> service.changePassword(USER_ID, VALIDA, "debil"));
     }
 
     @Test
     void changePasswordRechazaUnaCuentaBloqueada() {
-        Credential c = credencial(1L);
+        Credential c = credencial(USER_ID);
         c.setLockedUntil(NOW.plusMinutes(10));
 
-        assertThrows(AccountLockedException.class, () -> service.changePassword(1L, VALIDA, NUEVA));
+        assertThrows(AccountLockedException.class, () -> service.changePassword(USER_ID, VALIDA, NUEVA));
     }
 
     // ---------- resetPassword ----------
 
     @Test
     void resetPasswordCambiaLaContrasenaYDesbloqueaLaCuenta() {
-        Credential c = credencial(1L);
+        Credential c = credencial(USER_ID);
         c.setFailedAttempts(2);
         c.setLockedUntil(NOW.plusMinutes(10));
 
-        service.resetPassword(1L, NUEVA);
+        service.resetPassword(USER_ID, NUEVA);
 
         assertTrue(ENCODER.matches(NUEVA, c.getPasswordHash()));
         assertNull(c.getLockedUntil());
@@ -240,25 +245,25 @@ class CredentialServiceTest {
 
     @Test
     void resetPasswordFallaSiElUsuarioNoExiste() {
-        when(repository.findByUserId(99L)).thenReturn(Optional.empty());
+        when(repository.findByUserId(OTHER_ID)).thenReturn(Optional.empty());
 
-        assertThrows(UserNotFoundException.class, () -> service.resetPassword(99L, NUEVA));
+        assertThrows(UserNotFoundException.class, () -> service.resetPassword(OTHER_ID, NUEVA));
     }
 
     @Test
     void resetPasswordRechazaUnaNuevaIgualALaActual() {
-        credencial(1L);
+        credencial(USER_ID);
 
-        assertThrows(WeakPasswordException.class, () -> service.resetPassword(1L, VALIDA));
+        assertThrows(WeakPasswordException.class, () -> service.resetPassword(USER_ID, VALIDA));
     }
 
     // ---------- validateNewPassword ----------
 
     @Test
     void validateNewPasswordAceptaUnaContrasenaValidaYNoCambiaNada() {
-        Credential c = credencial(1L);
+        Credential c = credencial(USER_ID);
 
-        service.validateNewPassword(1L, NUEVA);
+        service.validateNewPassword(USER_ID, NUEVA);
 
         assertEquals(HASH, c.getPasswordHash());
         verify(repository, never()).save(any(Credential.class));
@@ -266,41 +271,41 @@ class CredentialServiceTest {
 
     @Test
     void validateNewPasswordRechazaUnaContrasenaDebil() {
-        credencial(1L);
+        credencial(USER_ID);
 
-        assertThrows(WeakPasswordException.class, () -> service.validateNewPassword(1L, "debil"));
+        assertThrows(WeakPasswordException.class, () -> service.validateNewPassword(USER_ID, "debil"));
     }
 
     @Test
     void validateNewPasswordRechazaUnaIgualALaActual() {
-        credencial(1L);
+        credencial(USER_ID);
 
-        assertThrows(WeakPasswordException.class, () -> service.validateNewPassword(1L, VALIDA));
+        assertThrows(WeakPasswordException.class, () -> service.validateNewPassword(USER_ID, VALIDA));
     }
 
     @Test
     void validateNewPasswordRechazaUnUsuarioSinCredencial() {
-        when(repository.findByUserId(99L)).thenReturn(Optional.empty());
+        when(repository.findByUserId(OTHER_ID)).thenReturn(Optional.empty());
 
-        assertThrows(UserNotFoundException.class, () -> service.validateNewPassword(99L, NUEVA));
+        assertThrows(UserNotFoundException.class, () -> service.validateNewPassword(OTHER_ID, NUEVA));
     }
 
     // ---------- delete / exists ----------
 
     @Test
     void deleteBorraLaCredencialDelUsuario() {
-        service.delete(5L);
+        service.delete(USER_ID);
 
-        verify(repository).deleteByUserId(5L);
+        verify(repository).deleteByUserId(USER_ID);
     }
 
     @Test
     void existsConsultaAlRepositorio() {
-        when(repository.existsByUserId(1L)).thenReturn(true);
-        when(repository.existsByUserId(2L)).thenReturn(false);
+        when(repository.existsByUserId(USER_ID)).thenReturn(true);
+        when(repository.existsByUserId(USER_ID_2)).thenReturn(false);
 
-        assertTrue(service.exists(1L));
-        assertFalse(service.exists(2L));
+        assertTrue(service.exists(USER_ID));
+        assertFalse(service.exists(USER_ID_2));
     }
 
     // ---------- wasIssuedBeforePasswordChange ----------
@@ -311,32 +316,32 @@ class CredentialServiceTest {
 
     @Test
     void unTokenAnteriorAlCambioDeContrasenaQuedaInvalidado() {
-        credencial(1L).setPasswordChangedAt(NOW);
-        assertTrue(service.wasIssuedBeforePasswordChange(1L, enZona(NOW).minusSeconds(1)));
+        credencial(USER_ID).setPasswordChangedAt(NOW);
+        assertTrue(service.wasIssuedBeforePasswordChange(USER_ID, enZona(NOW).minusSeconds(1)));
     }
 
     @Test
     void unTokenDelMismoSegundoDelCambioSigueSiendoValido() {
-        credencial(1L).setPasswordChangedAt(NOW.plusNanos(700_000_000));
-        assertFalse(service.wasIssuedBeforePasswordChange(1L, enZona(NOW)));
+        credencial(USER_ID).setPasswordChangedAt(NOW.plusNanos(700_000_000));
+        assertFalse(service.wasIssuedBeforePasswordChange(USER_ID, enZona(NOW)));
     }
 
     @Test
     void unTokenPosteriorAlCambioEsValido() {
-        credencial(1L).setPasswordChangedAt(NOW);
-        assertFalse(service.wasIssuedBeforePasswordChange(1L, enZona(NOW).plusSeconds(5)));
+        credencial(USER_ID).setPasswordChangedAt(NOW);
+        assertFalse(service.wasIssuedBeforePasswordChange(USER_ID, enZona(NOW).plusSeconds(5)));
     }
 
     @Test
     void sinCredencialElTokenQuedaInvalidado() {
-        when(repository.findByUserId(9L)).thenReturn(Optional.empty());
-        assertTrue(service.wasIssuedBeforePasswordChange(9L, enZona(NOW)));
+        when(repository.findByUserId(OTHER_ID)).thenReturn(Optional.empty());
+        assertTrue(service.wasIssuedBeforePasswordChange(OTHER_ID, enZona(NOW)));
     }
 
     @Test
     void sinFechaDeCambioElTokenEsValido() {
-        credencial(1L).setPasswordChangedAt(null);
-        assertFalse(service.wasIssuedBeforePasswordChange(1L, enZona(NOW)));
+        credencial(USER_ID).setPasswordChangedAt(null);
+        assertFalse(service.wasIssuedBeforePasswordChange(USER_ID, enZona(NOW)));
     }
 
     @Test
@@ -344,10 +349,10 @@ class CredentialServiceTest {
         ZoneId bogota = ZoneId.of("America/Bogota");
         CredentialService enBogota = new CredentialService(repository, ENCODER,
                 new PasswordPolicyService(ENCODER), Clock.fixed(Instant.now(), bogota));
-        Credential c = new Credential(2L, HASH, NOW);
-        when(repository.findByUserId(2L)).thenReturn(Optional.of(c));
+        Credential c = new Credential(USER_ID_2, HASH, NOW);
+        when(repository.findByUserId(USER_ID_2)).thenReturn(Optional.of(c));
 
-        assertFalse(enBogota.wasIssuedBeforePasswordChange(2L, NOW.atZone(bogota).toInstant()));
-        assertTrue(enBogota.wasIssuedBeforePasswordChange(2L, NOW.toInstant(ZoneOffset.UTC)));
+        assertFalse(enBogota.wasIssuedBeforePasswordChange(USER_ID_2, NOW.atZone(bogota).toInstant()));
+        assertTrue(enBogota.wasIssuedBeforePasswordChange(USER_ID_2, NOW.toInstant(ZoneOffset.UTC)));
     }
 }

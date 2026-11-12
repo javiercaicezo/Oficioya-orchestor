@@ -1,24 +1,20 @@
 package eci.edu.dosw.user;
 
 import java.util.Optional;
+import java.util.UUID;
 
 /**
- * Contrato del modulo User (de otro equipo). Identity no lo implementa: lo
- * consume
- * el orquestador, que es el unico que coordina los modulos (OR-03).
+ * Contrato del modulo User. Consumido por el orquestador.
  */
 public interface UserService {
 
-    Optional<UserDto> findById(Long id);
+    Optional<UserDto> findById(UUID id);
 
     Optional<UserDto> findByEmail(String email);
 
-    /** Crea el perfil y devuelve el usuario con su id asignado. */
+    /** Crea el perfil en Users y devuelve el usuario con su id (UUID) asignado. */
     UserDto createProfile(NewUser newUser);
 
-    /**
-     * Elimina un perfil. El orquestador lo usa para deshacer un registro que fallo
-     * a la mitad.
-     */
-    void deleteProfile(Long id);
+    /** Elimina un perfil en Users. Utilizado para compensación ante fallos. */
+    void deleteProfile(UUID id);
 }

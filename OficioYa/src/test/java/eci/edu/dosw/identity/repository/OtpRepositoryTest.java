@@ -12,6 +12,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -24,7 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class OtpRepositoryTest {
 
     private static final LocalDateTime NOW = LocalDateTime.of(2026, 10, 28, 12, 0);
-    private static final Long USER_ID = 1L;
+    private static final UUID USER_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
 
     @Autowired
     private CredentialRepository credentialRepository;
@@ -34,7 +35,6 @@ class OtpRepositoryTest {
 
     @BeforeEach
     void crearCredencial() {
-        // otp.user_id referencia credential.user_id
         credentialRepository.saveAndFlush(new Credential(USER_ID, "hash", NOW));
     }
 
@@ -95,18 +95,8 @@ class OtpRepositoryTest {
 
     @Test
     void noPermiteOtpSinCredencial() {
-        Otp huerfano = new Otp(999L, "hash", OtpPurpose.RESET_PASSWORD, NOW, NOW.plusMinutes(15));
+        Otp huerfano = new Otp(UUID.randomUUID(), "hash", OtpPurpose.RESET_PASSWORD, NOW, NOW.plusMinutes(15));
 
         assertThrows(DataIntegrityViolationException.class, () -> otpRepository.saveAndFlush(huerfano));
-    }
-
-    @Test
-    void borrarLaCredencialBorraSusOtp() {
-        otpRepository.saveAndFlush(otp("a", NOW, NOW.plusMinutes(15)));
-
-        credentialRepository.deleteByUserId(USER_ID);
-        credentialRepository.flush();
-
-        assertEquals(0, otpRepository.count());
     }
 }

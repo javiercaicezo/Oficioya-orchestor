@@ -1,15 +1,17 @@
 package eci.edu.dosw.local;
 
 import eci.edu.dosw.identity.exception.DuplicateUserException;
+import eci.edu.dosw.orchestrator.dto.PhoneDTO;
 import eci.edu.dosw.user.NewUser;
-import eci.edu.dosw.user.Role;
 import eci.edu.dosw.user.UserDto;
 import org.junit.jupiter.api.Test;
 
-import java.util.Set;
+import java.util.List;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -18,16 +20,16 @@ class LocalUserServiceTest {
     private final LocalUserService service = new LocalUserService();
 
     private NewUser nuevo(String email) {
-        return new NewUser("Ana", email, Set.of(Role.CONTRATANTE));
+        return new NewUser("Ana", email, List.of(new PhoneDTO("+573001234567", true)), List.of("CONTRATANTE"));
     }
 
     @Test
-    void asignaIdsConsecutivosYUsuarioActivo() {
+    void asignaIdsValidosYUsuarioActivo() {
         UserDto a = service.createProfile(nuevo("a@x.com"));
         UserDto b = service.createProfile(nuevo("b@x.com"));
 
-        assertEquals(1L, a.id());
-        assertEquals(2L, b.id());
+        assertNotNull(a.id());
+        assertNotNull(b.id());
         assertTrue(a.active());
     }
 
@@ -36,7 +38,7 @@ class LocalUserServiceTest {
         UserDto creado = service.createProfile(nuevo("a@x.com"));
 
         assertEquals(creado, service.findById(creado.id()).orElseThrow());
-        assertTrue(service.findById(99L).isEmpty());
+        assertTrue(service.findById(UUID.randomUUID()).isEmpty());
     }
 
     @Test
@@ -69,13 +71,13 @@ class LocalUserServiceTest {
     }
 
     @Test
-    void clearVaciaTodoYReiniciaLosIds() {
+    void clearVaciaTodo() {
         service.createProfile(nuevo("a@x.com"));
 
         service.clear();
 
         assertTrue(service.findByEmail("a@x.com").isEmpty());
-        assertEquals(1L, service.createProfile(nuevo("b@x.com")).id());
+        assertNotNull(service.createProfile(nuevo("b@x.com")).id());
     }
 
     @Test
