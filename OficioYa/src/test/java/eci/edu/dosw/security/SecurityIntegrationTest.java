@@ -132,7 +132,7 @@ class SecurityIntegrationTest {
     @Test
     void tokenFirmadoConOtraClaveDevuelve401() throws Exception {
         String otraClave = Encoders.BASE64.encode(Jwts.SIG.HS256.key().build().getEncoded());
-        String ajeno = new JwtProvider(otraClave, 900_000L).generateToken(USER_ID, List.of("ADMIN"));
+        String ajeno = new JwtProvider(otraClave, 1_800_000L).generateToken(USER_ID, List.of("ADMIN"));
         get("/api/admin/probe", ajeno).andExpect(status().isUnauthorized());
     }
 
@@ -208,17 +208,26 @@ class SecurityIntegrationTest {
     // --- rutas públicas ---
     @Test
     void lasRutasPublicasNoExigenToken() throws Exception {
-        for (String ruta : List.of("/api/auth/login", "/api/auth/register",
-                "/api/auth/forgot-password", "/api/auth/reset-password")) {
+        for (String ruta : List.of("/api/v1/auth/login", "/api/v1/auth/register",
+                "/api/v1/auth/forgot", "/api/v1/auth/reset")) {
             mvc.perform(MockMvcRequestBuilders.post(ruta))
                     .andExpect(result -> assertNotEquals(401, result.getResponse().getStatus()));
         }
     }
 
     @Test
+    void lasRutasViejasSinVersionYaNoSonPublicas() throws Exception {
+        for (String ruta : List.of("/api/auth/login", "/api/auth/register",
+                "/api/auth/forgot-password", "/api/auth/reset-password")) {
+            mvc.perform(MockMvcRequestBuilders.post(ruta))
+                    .andExpect(status().isUnauthorized());
+        }
+    }
+
+    @Test
     void unTokenVencidoEnUnaRutaPublicaNoLaBloquea() throws Exception {
         String vencido = new JwtProvider(secret, -1000L).generateToken(USER_ID, List.of("CONTRATANTE"));
-        mvc.perform(MockMvcRequestBuilders.post("/api/auth/login")
+        mvc.perform(MockMvcRequestBuilders.post("/api/v1/auth/login")
                 .header("Authorization", "Bearer " + vencido))
                 .andExpect(result -> assertNotEquals(401, result.getResponse().getStatus()));
     }
