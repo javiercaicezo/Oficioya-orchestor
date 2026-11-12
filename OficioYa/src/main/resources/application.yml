@@ -31,4 +31,4 @@ jwt:
   # En desarrollo local el secreto sale de application-local.yml.
   secret: ${JWT_SECRET}
   expiration:
-    ms: 1800000
+    ms: 900000
