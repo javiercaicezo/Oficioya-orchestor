@@ -16,7 +16,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
  * y pruebas.
  */
 @Service
-@Profile({ "local", "test", "default" })
+@Profile({ "local", "test" })
 public class LocalNotificationService implements NotificationService {
 
     private static final Logger log = LoggerFactory.getLogger(LocalNotificationService.class);
