@@ -21,7 +21,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * Se reemplaza por la del equipo de Usuarios cuando exista.
  */
 @Service
-@Profile({ "local", "test" })
+@Profile({ "local", "test", "default" })
 public class LocalUserService implements UserService {
 
     private final Map<Long, UserDto> usuarios = new ConcurrentHashMap<>();
