@@ -1,5 +1,7 @@
 package eci.edu.dosw.identity.controller;
 
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import eci.edu.dosw.orchestrator.AuthOrchestrator;
 import eci.edu.dosw.orchestrator.dto.ChangePasswordRequest;
 import eci.edu.dosw.orchestrator.dto.ForgotPasswordRequest;
@@ -58,7 +60,7 @@ public class AuthController {
 
     @Operation(summary = "Registrar nuevo usuario", description = "Registra un usuario en User Domain y crea su credencial en Identity Domain.")
     @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "Usuario registrado exitosamente"),
+        @ApiResponse(responseCode = "201", description = "Usuario registrado exitosamente"),
         @ApiResponse(responseCode = "400", description = "Contraseña débil según política de seguridad",
                      content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
         @ApiResponse(responseCode = "403", description = "Rol prohibido para autorregistro (ej. ADMINISTRATOR)",
@@ -66,6 +68,7 @@ public class AuthController {
         @ApiResponse(responseCode = "409", description = "Correo electrónico ya registrado",
                      content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
+    @ResponseStatus(HttpStatus.CREATED)
     @PostMapping("/register")
 
     public UserDto register(@Valid @RequestBody RegisterRequest register) {
