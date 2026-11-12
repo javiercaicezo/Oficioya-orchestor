@@ -7,6 +7,7 @@ import eci.edu.dosw.identity.exception.UsersServiceUnavailableException;
 import eci.edu.dosw.identity.service.JwtProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Primary;
 import org.springframework.context.annotation.Profile;
@@ -35,6 +36,7 @@ public class HttpUserService implements UserService {
     private final JwtProvider jwtProvider;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
+    @Autowired
     public HttpUserService(
             @Value("${users.service.url:http://localhost:8080}") String usersServiceUrl,
             JwtProvider jwtProvider) {
