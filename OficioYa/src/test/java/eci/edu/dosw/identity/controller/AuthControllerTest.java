@@ -41,9 +41,13 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import eci.edu.dosw.orchestrator.dto.PhoneDTO;
+import java.util.UUID;
+
 @DisplayName("Pruebas del AuthController y GlobalExceptionHandler")
 class AuthControllerTest {
 
+    private static final UUID USER_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
     private MockMvc mockMvc;
     private AuthOrchestrator authOrchestrator;
 
@@ -64,7 +68,7 @@ class AuthControllerTest {
         @DisplayName("200 OK cuando las credenciales son correctas")
         void loginExitoso() throws Exception {
             when(authOrchestrator.login(any(LoginRequest.class)))
-                    .thenReturn(new LoginResponse("jwt-token-valido", 900, 1L, Set.of(Role.CONTRATANTE)));
+                    .thenReturn(new LoginResponse("jwt-token-valido", 900, USER_ID, List.of("CONTRATANTE")));
 
             mockMvc.perform(post("/api/v1/auth/login")
                             .contentType(MediaType.APPLICATION_JSON)
@@ -77,7 +81,7 @@ class AuthControllerTest {
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.token", is("jwt-token-valido")))
                     .andExpect(jsonPath("$.expiresInSeconds", is(900)))
-                    .andExpect(jsonPath("$.userId", is(1)));
+                    .andExpect(jsonPath("$.userId", is(USER_ID.toString())));
         }
 
         @Test
@@ -138,7 +142,7 @@ class AuthControllerTest {
         @Test
         @DisplayName("201 OK al registrar exitosamente")
         void registerExitoso() throws Exception {
-            UserDto nuevo = new UserDto(1L, "Carlos", "carlos@x.com", Set.of(Role.CONTRATANTE), true);
+            UserDto nuevo = new UserDto(USER_ID, "Carlos", "carlos@x.com", List.of(new PhoneDTO("3001234567", true)), List.of("CONTRATANTE"), "ACTIVE");
             when(authOrchestrator.register(any(RegisterRequest.class))).thenReturn(nuevo);
 
             mockMvc.perform(post("/api/v1/auth/register")
@@ -148,11 +152,14 @@ class AuthControllerTest {
                                       "name": "Carlos",
                                       "email": "carlos@x.com",
                                       "password": "Password123#",
+                                      "phones": [
+                                        { "number": "3001234567", "principal": true }
+                                      ],
                                       "roles": ["CONTRATANTE"]
                                     }
                                     """))
                     .andExpect(status().isCreated())
-                    .andExpect(jsonPath("$.id", is(1)))
+                    .andExpect(jsonPath("$.id", is(USER_ID.toString())))
                     .andExpect(jsonPath("$.email", is("carlos@x.com")));
         }
 
@@ -169,6 +176,9 @@ class AuthControllerTest {
                                       "name": "Carlos",
                                       "email": "carlos@x.com",
                                       "password": "Password123#",
+                                      "phones": [
+                                        { "number": "3001234567", "principal": true }
+                                      ],
                                       "roles": ["ADMIN"]
                                     }
                                     """))
@@ -189,6 +199,9 @@ class AuthControllerTest {
                                       "name": "Carlos",
                                       "email": "duplicado@x.com",
                                       "password": "Password123#",
+                                      "phones": [
+                                        { "number": "3001234567", "principal": true }
+                                      ],
                                       "roles": ["CONTRATANTE"]
                                     }
                                     """))
@@ -209,6 +222,9 @@ class AuthControllerTest {
                                       "name": "Carlos",
                                       "email": "carlos@x.com",
                                       "password": "123",
+                                      "phones": [
+                                        { "number": "3001234567", "principal": true }
+                                      ],
                                       "roles": ["CONTRATANTE"]
                                     }
                                     """))
@@ -222,12 +238,12 @@ class AuthControllerTest {
     class ChangePasswordTests {
 
         private final UsernamePasswordAuthenticationToken usuario1 =
-                new UsernamePasswordAuthenticationToken(1L, null, List.of());
+                new UsernamePasswordAuthenticationToken(USER_ID, null, List.of());
 
         @Test
         @DisplayName("200 OK al cambiar contrasena correctamente")
         void changePasswordExitoso() throws Exception {
-            doNothing().when(authOrchestrator).changePassword(eq(1L), any(ChangePasswordRequest.class));
+            doNothing().when(authOrchestrator).changePassword(eq(USER_ID), any(ChangePasswordRequest.class));
 
             mockMvc.perform(put("/api/v1/auth/change")
                             .principal(usuario1)
@@ -245,7 +261,7 @@ class AuthControllerTest {
         @DisplayName("401 UNAUTHORIZED si la contrasena actual es incorrecta")
         void changePasswordActualIncorrecta() throws Exception {
             doThrow(new InvalidCredentialsException())
-                    .when(authOrchestrator).changePassword(eq(1L), any(ChangePasswordRequest.class));
+                    .when(authOrchestrator).changePassword(eq(USER_ID), any(ChangePasswordRequest.class));
 
             mockMvc.perform(put("/api/v1/auth/change")
                             .principal(usuario1)
@@ -263,7 +279,7 @@ class AuthControllerTest {
         @DisplayName("400 BAD_REQUEST si la nueva contrasena no cumple la politica")
         void changePasswordNuevaDebil() throws Exception {
             doThrow(new WeakPasswordException())
-                    .when(authOrchestrator).changePassword(eq(1L), any(ChangePasswordRequest.class));
+                    .when(authOrchestrator).changePassword(eq(USER_ID), any(ChangePasswordRequest.class));
 
             mockMvc.perform(put("/api/v1/auth/change")
                             .principal(usuario1)

@@ -14,9 +14,9 @@ import eci.edu.dosw.orchestrator.dto.ChangePasswordRequest;
 import eci.edu.dosw.orchestrator.dto.ForgotPasswordRequest;
 import eci.edu.dosw.orchestrator.dto.LoginRequest;
 import eci.edu.dosw.orchestrator.dto.LoginResponse;
+import eci.edu.dosw.orchestrator.dto.PhoneDTO;
 import eci.edu.dosw.orchestrator.dto.RegisterRequest;
 import eci.edu.dosw.orchestrator.dto.ResetPasswordRequest;
-import eci.edu.dosw.user.Role;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -24,7 +24,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 
-import java.util.Set;
+import java.util.List;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -64,7 +65,8 @@ class AuthFlowIntegrationTest {
     }
 
     private void registrar() {
-        orchestrator.register(new RegisterRequest("Ana", CORREO, CLAVE, Set.of(Role.CONTRATANTE)));
+        orchestrator.register(new RegisterRequest("Ana", CORREO, CLAVE,
+                List.of(new PhoneDTO("+573001234567", true)), List.of("CONTRATANTE")));
     }
 
     private String codigoEnviado() {
@@ -83,7 +85,7 @@ class AuthFlowIntegrationTest {
 
         assertTrue(jwtProvider.isValid(respuesta.token()));
         assertEquals(respuesta.userId(), jwtProvider.getUserIdFromToken(respuesta.token()));
-        assertEquals(Set.of(Role.CONTRATANTE), respuesta.roles());
+        assertEquals(List.of("CONTRATANTE"), respuesta.roles());
     }
 
     @Test
@@ -111,7 +113,7 @@ class AuthFlowIntegrationTest {
     @Test
     void cambiarLaContrasenaConLaActualFuncionaYAvisa() {
         registrar();
-        Long id = orchestrator.login(new LoginRequest(CORREO, CLAVE)).userId();
+        UUID id = orchestrator.login(new LoginRequest(CORREO, CLAVE)).userId();
 
         orchestrator.changePassword(id, new ChangePasswordRequest(CLAVE, NUEVA));
 

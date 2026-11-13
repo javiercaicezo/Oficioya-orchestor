@@ -2,33 +2,29 @@ package eci.edu.dosw.local;
 
 import eci.edu.dosw.identity.exception.DuplicateUserException;
 import eci.edu.dosw.user.NewUser;
-import eci.edu.dosw.user.Role;
 import eci.edu.dosw.user.UserDto;
 import eci.edu.dosw.user.UserService;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * Implementacion TEMPORAL en memoria del modulo User, para desarrollo y
- * pruebas.
- * Se reemplaza por la del equipo de Usuarios cuando exista.
+ * Implementación en memoria del módulo User para pruebas locales y tests automatizados.
  */
 @Service
-@Profile({ "local", "test"})
+@Profile({ "local", "test" })
 public class LocalUserService implements UserService {
 
-    private final Map<Long, UserDto> usuarios = new ConcurrentHashMap<>();
-    private final AtomicLong secuencia = new AtomicLong(0);
+    private final Map<UUID, UserDto> usuarios = new ConcurrentHashMap<>();
 
     @Override
-    public Optional<UserDto> findById(Long id) {
+    public Optional<UserDto> findById(UUID id) {
         return Optional.ofNullable(usuarios.get(id));
     }
 
@@ -48,27 +44,27 @@ public class LocalUserService implements UserService {
         if (findByEmail(newUser.email()).isPresent()) {
             throw new DuplicateUserException();
         }
-        Set<Role> roles = newUser.roles() == null ? Set.of() : Set.copyOf(newUser.roles());
-        UserDto creado = new UserDto(secuencia.incrementAndGet(), newUser.name(), newUser.email().trim(), roles, true);
+        List<String> roles = newUser.roles() == null ? List.of() : List.copyOf(newUser.roles());
+        UUID id = UUID.randomUUID();
+        UserDto creado = new UserDto(id, newUser.name(), newUser.email().trim(), newUser.phones(), roles, "ACTIVE");
         usuarios.put(creado.id(), creado);
         return creado;
     }
 
     @Override
-    public void deleteProfile(Long id) {
+    public void deleteProfile(UUID id) {
         usuarios.remove(id);
     }
 
     /** Solo para pruebas: marca al usuario como inactivo. */
-    public void deactivate(Long id) {
+    public void deactivate(UUID id) {
         usuarios.computeIfPresent(id,
-                (k, u) -> new UserDto(u.id(), u.name(), u.email(), u.roles(), false));
+                (k, u) -> new UserDto(u.id(), u.name(), u.email(), u.phones(), u.roles(), "INACTIVE", false));
     }
 
-    /** Solo para pruebas: vacia los usuarios y reinicia los ids. */
+    /** Solo para pruebas: vacía los usuarios. */
     public synchronized void clear() {
         usuarios.clear();
-        secuencia.set(0);
     }
 
     private static String normalizar(String email) {

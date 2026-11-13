@@ -1,5 +1,6 @@
 package eci.edu.dosw.identity.controller;
 
+import eci.edu.dosw.identity.exception.AccountInactiveException;
 import eci.edu.dosw.identity.exception.AccountLockedException;
 import eci.edu.dosw.identity.exception.DuplicateUserException;
 import eci.edu.dosw.identity.exception.ForbiddenRoleException;
@@ -7,6 +8,7 @@ import eci.edu.dosw.identity.exception.InvalidCredentialsException;
 import eci.edu.dosw.identity.exception.InvalidOtpException;
 import eci.edu.dosw.identity.exception.OtpRateLimitException;
 import eci.edu.dosw.identity.exception.UserNotFoundException;
+import eci.edu.dosw.identity.exception.UsersServiceUnavailableException;
 import eci.edu.dosw.identity.exception.WeakPasswordException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -77,6 +79,26 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(UserNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleUserNotFound(UserNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ErrorResponse(ex.getMessage()));
+    }
+
+    @ExceptionHandler(AccountInactiveException.class)
+    public ResponseEntity<ErrorResponse> handleAccountInactive(AccountInactiveException ex) {
+        log.warn("Excepción de seguridad: cuenta inactiva o bloqueada");
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(new ErrorResponse(ex.getMessage()));
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ErrorResponse> handleIllegalArgument(IllegalArgumentException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(new ErrorResponse(ex.getMessage()));
+    }
+
+    @ExceptionHandler(UsersServiceUnavailableException.class)
+    public ResponseEntity<ErrorResponse> handleUsersServiceUnavailable(UsersServiceUnavailableException ex) {
+        log.error("Microservicio de usuarios no disponible: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
                 .body(new ErrorResponse(ex.getMessage()));
     }
 

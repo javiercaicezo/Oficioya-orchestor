@@ -2,8 +2,8 @@ package eci.edu.dosw.local;
 
 import eci.edu.dosw.identity.repository.CredentialRepository;
 import eci.edu.dosw.identity.service.CredentialService;
+import eci.edu.dosw.orchestrator.dto.PhoneDTO;
 import eci.edu.dosw.user.NewUser;
-import eci.edu.dosw.user.Role;
 import eci.edu.dosw.user.UserDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,16 +12,11 @@ import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
-import java.util.Set;
+import java.util.List;
 
 /**
  * Carga usuarios de prueba al arrancar en perfil local.
  * Solo activo con el perfil "local" (nunca en producción).
- *
- * Crea el perfil y la credencial directamente (sin pasar por el orquestador) porque
- * el registro público rechaza el rol ADMIN. Los usuarios viven en memoria y sus
- * ids reinician en cada arranque, pero las credenciales quedan en la base de datos:
- * por eso se borran antes de sembrar, para que no choquen con los ids nuevos.
  */
 @Component
 @Profile("local")
@@ -46,19 +41,23 @@ public class DevDataSeeder implements ApplicationRunner {
         log.warn("DevDataSeeder: credenciales anteriores eliminadas (perfil local, usuarios en memoria).");
 
         int cargados = 0;
-        cargados += seedUser("Carlos López", "carlos@oficioya.com", "Carlos2024!*", Set.of(Role.CONTRATANTE));
-        cargados += seedUser("Admin OficioYa", "admin@oficioya.com", "Admin2024!*Dev", Set.of(Role.ADMIN));
+        cargados += seedUser("Carlos López", "carlos@oficioya.com", "Carlos2024!*", List.of("CONTRATANTE"));
+        cargados += seedUser("Admin OficioYa", "admin@oficioya.com", "Admin2024!*Dev", List.of("ADMIN"));
         log.info("DevDataSeeder: {} usuarios de prueba cargados.", cargados);
     }
 
-    private int seedUser(String name, String email, String password, Set<Role> roles) {
+    private int seedUser(String name, String email, String password, List<String> roles) {
         try {
             UserDto usuario = localUserService.findByEmail(email)
-                    .orElseGet(() -> localUserService.createProfile(new NewUser(name, email, roles)));
+                    .orElseGet(() -> localUserService.createProfile(new NewUser(
+                            name,
+                            email,
+                            List.of(new PhoneDTO("3001234567", true)),
+                            roles)));
             if (credentialService.exists(usuario.id())) {
                 return 0;
             }
-            credentialService.create(usuario.id(), password);
+            credentialService.create(usuario.id(), usuario.email(), password);
             log.info("DevDataSeeder: usuario de prueba creado con userId={}.", usuario.id());
             return 1;
         } catch (RuntimeException e) {
